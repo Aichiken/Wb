@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tokgistic Admin Audit Dashboard — Main</title>
+  <script src="./assets/config.js"></script>
+  <script src="./assets/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f4f7fb; color: #0f172a; }
+    .app-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; }
+    .side-nav {
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 24px 18px; position: sticky; top: 0; height: 100vh;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .side-nav h2 { margin: 0; font-size: 20px; }
+    .side-nav .nav-sub { font-size: 12px; color: rgba(255,255,255,.72); line-height: 1.5; }
+    .nav-menu { display: flex; flex-direction: column; gap: 10px; }
+    .nav-btn {
+      border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: #fff; border-radius: 14px; padding: 12px 14px; text-align: left; font-weight: 700; cursor: pointer;
+    }
+    .nav-btn.active { background: #2563eb; border-color: #60a5fa; box-shadow: 0 12px 26px rgba(37,99,235,.35); }
+    .nav-meta { margin-top: auto; display: grid; gap: 10px; }
+    .nav-meta .mini { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.08); font-size: 12px; }
+    .connection-indicator {
+      display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; font-size:12px; font-weight:800; background:rgba(255,255,255,.12); margin-top:12px;
+    }
+    .connection-dot { width:10px; height:10px; border-radius:999px; background:#94a3b8; box-shadow:0 0 0 4px rgba(148,163,184,.18); }
+    .connection-indicator.connected { background:rgba(34,197,94,.18); color:#dcfce7; }
+    .connection-indicator.connected .connection-dot { background:#22c55e; box-shadow:0 0 0 4px rgba(34,197,94,.18); }
+    .connection-indicator.disconnected { background:rgba(248,113,113,.18); color:#fee2e2; }
+    .connection-indicator.disconnected .connection-dot { background:#ef4444; box-shadow:0 0 0 4px rgba(239,68,68,.18); }
+    .wrap { max-width: 1680px; margin: 0 auto; padding: 24px; min-width: 0; }
+    .content-panel { display: none; }
+    .content-panel.active { display: block; }
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
+      color: #fff;
+      border-radius: 20px;
+      padding: 24px 26px;
+      margin-bottom: 16px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+    }
+    .hero h1 { margin: 0; font-size: 28px; }
+    .hero p { margin: 8px 0 0; line-height: 1.55; max-width: 1040px; color: rgba(255,255,255,.9); }
+    .hero-note { margin-top: 10px; font-size: 12px; color: rgba(255,255,255,.78); }
+    .surface { background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+    .toolbar {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(120px, 1fr));
+      gap: 12px;
+      padding: 16px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+    .field label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+    .field input, .field select {
+      width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; padding: 10px 12px; font-size: 12px;
+    }
+    .smart-select-native { display: none; }
+    .smart-select { position: relative; }
+    .smart-select-trigger {
+      width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; padding: 8px 12px; font-size: 12px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
+    }
+    .smart-select-trigger .summary { color: #0f172a; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .smart-select-trigger .caret { color: #64748b; font-size: 12px; }
+    .smart-select-panel {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 14px;
+      box-shadow: 0 18px 38px rgba(15,23,42,.16); padding: 10px; z-index: 30; display: none;
+    }
+    .smart-select.open .smart-select-panel { display: block; }
+    .smart-select-search { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px 10px; font-size: 12px; margin-bottom: 8px; }
+    .smart-select-actions { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .smart-select-actions button { flex: 1; padding: 8px 10px; font-size: 11px; }
+    .smart-select-options { max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+    .smart-select-option {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 12px; color: #0f172a;
+    }
+    .smart-select-option:hover { background: #f8fafc; }
+    .smart-select-option input { width: auto; margin: 0; }
+    .toolbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    button {
+      border: 0; border-radius: 10px; padding: 10px 14px; font-size: 12px; font-weight: 800; cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-ghost { background: #e2e8f0; color: #0f172a; }
+    .rowcount { font-size: 13px; color: #475569; font-weight: 700; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card { padding: 16px; }
+    .card .k { font-size: 12px; color: #64748b; font-weight: 700; margin-bottom: 8px; }
+    .card .v { font-size: 24px; font-weight: 800; }
+    .card .subv { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .tablebox { overflow-x: auto; }
+    .metrics-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; margin-bottom: 16px; }
+    .metric-panel { padding: 18px; }
+    .metric-header { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom: 12px; flex-wrap: wrap; }
+    .metric-header h3 { margin:0; font-size:16px; }
+    .trend-summary { display:grid; grid-template-columns: repeat(4, minmax(120px,1fr)); gap: 10px; margin-bottom: 12px; }
+    .trend-chip { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; }
+    .trend-chip .k { font-size:11px; color:#64748b; font-weight:700; text-transform: uppercase; }
+    .trend-chip .v { font-size:18px; font-weight:800; margin-top:4px; }
+    .trend-table { width:100%; border-collapse: collapse; font-size:12px; }
+    .trend-table th, .trend-table td { padding: 10px 8px; border-bottom:1px solid #e2e8f0; text-align:left; }
+    .trend-table td.num { text-align:right; font-variant-numeric: tabular-nums; }
+    .trend-bar { height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
+    .trend-bar > span { display:block; height:100%; background:linear-gradient(90deg,#2563eb,#38bdf8); }
+    .clickable-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-weight:700; cursor:pointer; border:1px solid #bfdbfe; }
+    .clickable-row { cursor:pointer; }
+    .clickable-row:hover { background:#f8fafc; }
+    .toast {
+      position: fixed; top: 20px; right: 20px; z-index: 100001; min-width: 280px; max-width: 380px; background: #0f172a; color: #fff;
+      padding: 14px 16px; border-radius: 14px; box-shadow: 0 18px 42px rgba(15,23,42,.35); display:none;
+    }
+    .toast.open { display:block; }
+    .toast.error { background:#991b1b; }
+    .toast.success { background:#166534; }
+    .toast .title { font-weight:800; margin-bottom:4px; }
+    table { width: 100%; min-width: 1500px; border-collapse: collapse; }
+    thead th {
+      position: sticky; top: 0; z-index: 2; background: #0f172a; color: #fff; text-align: left; padding: 12px 10px; font-size: 12px; white-space: nowrap;
+    }
+    tbody td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; vertical-align: top; }
+    tbody tr:hover { background: #f8fafc; }
+    .num { text-align: right; white-space: nowrap; }
+    .main-text { font-weight: 800; color: #0f172a; line-height: 1.45; }
+    .sub-text { margin-top: 4px; color: #64748b; font-size: 11px; line-height: 1.45; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: normal; margin: 2px 4px 2px 0; line-height: 1.25;
+    }
+    .badge-red { background: #fee2e2; color: #b91c1c; }
+    .badge-orange { background: #ffedd5; color: #c2410c; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-purple { background: #ede9fe; color: #6d28d9; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-gray { background: #e2e8f0; color: #334155; }
+    .thumb {
+      width: 44px; height: 44px; border-radius: 10px; object-fit: cover; border: 1px solid #cbd5e1; cursor: pointer; display: block;
+    }
+    .thumb-wrap { display: flex; gap: 8px; align-items: center; }
+    .icon-btn {
+      width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 10px; background: #e2e8f0; color: #0f172a;
+    }
+    .icon { font-size: 16px; line-height: 1; }
+    .stack { display: flex; flex-direction: column; gap: 8px; }
+    .action-select {
+      width: 150px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 700; background: #fff;
+    }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 999;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: min(920px, 100%); max-height: calc(100vh - 48px); overflow: auto; background: #fff; border-radius: 18px; box-shadow: 0 30px 80px rgba(15,23,42,.28);
+    }
+    .modal.small { width: min(620px, 100%); }
+    .modal-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: #fff; z-index: 1;
+    }
+    .modal-title { font-size: 16px; font-weight: 800; }
+    .modal-body { padding: 18px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 12px; }
+    .detail-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; }
+    .detail-card .label { font-size: 11px; color: #64748b; font-weight: 700; margin-bottom: 6px; }
+    .detail-card .value { font-size: 14px; font-weight: 800; }
+    .evidence-expense { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-top: 12px; background: #f8fafc; }
+    .evidence-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+    .evidence-photo { border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px; background: #fff; }
+    .evidence-photo img { width: 100%; max-height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .evidence-photo .label { font-size: 11px; color: #64748b; font-weight: 800; margin-bottom: 6px; }
+    .evidence-error { color: #b91c1c; font-size: 12px; font-weight: 700; margin-top: 6px; }
+    .evidence-ok { color: #047857; font-size: 12px; font-weight: 700; margin-top: 6px; }
+    .full-image { width: 100%; border-radius: 14px; border: 1px solid #e2e8f0; }
+    .editor textarea {
+      width: 100%; min-height: 120px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; font-size: 13px; font-family: Arial, Helvetica, sans-serif; resize: vertical;
+    }
+    .editor-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px 12px; margin-top: 10px; align-items: center; }
+    .bbm-panel { margin-top: 14px; padding: 16px; }
+    .bbm-panel h3 { margin: 0; font-size: 16px; }
+    .bbm-panel-note { margin-top: 6px; color: #64748b; font-size: 12px; line-height: 1.5; }
+    .bbm-summary { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; margin: 14px 0; }
+    .bbm-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; background: #f8fafc; }
+    .bbm-card .k { font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; }
+    .bbm-card .v { margin-top: 5px; font-size: 22px; font-weight: 900; color: #0f172a; }
+    .bbm-rule { min-width: 320px; line-height: 1.45; }
+    .bbm-rule .rule-title { font-weight: 900; margin-bottom: 5px; }
+    .bbm-rule .rule-line { margin-top: 4px; color: #475569; font-size: 11px; }
+    .bbm-actions { color: #0f172a; font-size: 11px; line-height: 1.45; }
+    .center { text-align: center; }
+    @media (max-width: 1400px) {
+      .toolbar { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+      .cards { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+    }
+    @media (max-width: 1100px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .side-nav { position: relative; height: auto; }
+      .metrics-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="side-nav">
+      <div>
+        <h2>Audit Tokgistic</h2>
+        <div class="nav-sub">Menu untuk melihat ringkasan, data laporan, dan metrik historis.</div>
+        <div id="extensionIndicator" class="connection-indicator disconnected">
+          <span class="connection-dot"></span>
+          <span id="extensionIndicatorText">Local candidate mode</span>
+        </div>
+      </div>
+      <div class="nav-menu">
+        <button class="nav-btn active" data-panel-target="overviewPanel" onclick="switchPanel('overviewPanel')">Ringkasan</button>
+        <button class="nav-btn" data-panel-target="bbmPanel" onclick="switchPanel('bbmPanel')">Prioritas Pemeriksaan BBM</button>
+        <button class="nav-btn" data-panel-target="metricsPanel" onclick="switchPanel('metricsPanel')">Metrik Historis</button>
+        <button class="nav-btn" data-panel-target="rawdataPanel" onclick="switchPanel('rawdataPanel')">Data Laporan</button>
+      </div>
+      <div class="nav-meta">
+        <div class="mini"><strong id="sidebarSyncState">Sinkronisasi:</strong> <span id="sidebarSyncText">Menunggu koneksi</span></div>
+        <div class="mini"><strong id="sidebarLiveRowsLabel">Jumlah laporan aktif:</strong> <span id="sidebarLiveRows">-</span></div>
+      </div>
+    </aside>
+    <div class="wrap">
+    <div class="hero">
+      <h1>Tokgistic Admin Audit Dashboard</h1>
+      <p>Main admin interface for GTL Driving Report audit: report search, data-quality controls, outstanding review, KM continuity, evidence/photo status, safe Excel export, and guarded live batch ingestion.</p>
+      <div class="hero-note">Main mode keeps historical data read-only, preserves existing records, deduplicates by Report ID, and quarantines conflicting payloads for review. The 7 protected conflict IDs are never overwritten automatically.</div>
+      <div class="legend">
+        <span class="badge badge-red">Dikecualikan dari Pemeriksaan</span>
+        <span class="badge badge-orange">Kualitas Data</span>
+        <span class="badge badge-purple">Indikasi Metadata Duplikat</span>
+        <span class="badge badge-green">Tidak Ada Temuan Aktif</span>
+      </div>
+    </div>
+
+    <div class="surface toolbar">
+      <div class="field"><label>Cluster</label><select id="clusterFilter" data-smart-multi="true"></select></div>
+      <div class="field"><label>Hub</label><select id="hubFilter" data-smart-multi="true"></select></div>
+      <div class="field"><label>Tanggal Mulai</label><input id="fromDate" type="date" /></div>
+      <div class="field"><label>Tanggal Akhir</label><input id="toDate" type="date" /></div>
+      <div class="field"><label>Status Pencairan</label><select id="disbursementFilter" data-smart-multi="true"></select></div>
+      <div class="field"><label>Status Penyelesaian</label><select id="settlementFilter" data-smart-multi="true"></select></div>
+      <div class="field"><label>Kategori Pemeriksaan</label><select id="flagFilter" data-smart-multi="true"></select></div>
+      <div class="field"><label>Cari</label><input id="searchInput" type="text" placeholder="Cari Driver, Hub, rute, plat, alasan, atau Feedback" /></div>
+      <div class="toolbar-actions" style="grid-column: 1 / -1;">
+        <button id="sortBtn" class="btn-primary">Urutkan Biaya ↓</button>
+        <button id="exportBtn" class="btn-green">Export ke Excel</button>
+        <button id="refreshBtn" class="btn-ghost">Muat Ulang Data</button>
+        <button id="resetFilterBtn" class="btn-ghost">Reset Filter</button>
+        <label class="hint">Muat ulang otomatis <select id="refreshInterval"><option value="30000">30s</option><option value="60000" selected>1m</option><option value="300000">5m</option><option value="900000">15m</option></select></label>
+        <label class="hint"><input id="autoRefreshToggle" type="checkbox" checked /> Aktifkan</label>
+        <span class="rowcount" id="rowCount"></span>
+        <span class="hint" id="syncBadge" style="padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#475569;font-weight:700;">IDLE</span>
+        <span class="hint" id="lastSyncedAt">Terakhir sinkron: -</span>
+        <span class="hint" id="liveRowCount">Jumlah laporan aktif: -</span>
+        <span class="sub-text" id="refreshStatus">Muat ulang otomatis belum berjalan</span>
+      </div>
+    </div>
+
+    <section class="surface" id="adminReadinessPanel" style="margin-bottom:16px;">
+      <div class="section-title"><h2>Admin Control Center</h2><span id="adminIntegrityBadge" class="badge badge-green">Historical baseline protected</span></div>
+      <div class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+        <div class="stat" style="display:flex;flex-direction:column;gap:6px;"><small>Protected conflict IDs</small><strong>7</strong><span>10099, 11924, 5983, 6376, 6377, 6381, 6382</span></div>
+        <div class="stat" style="display:flex;flex-direction:column;gap:6px;"><small>Live ingestion mode</small><strong>Batch / pagination</strong><span>Official GTL list endpoint only; no one-by-one report crawl</span></div>
+        <div class="stat" style="display:flex;flex-direction:column;gap:6px;"><small>Photo loading mode</small><strong>Lazy direct URL</strong><span>Open on demand; dashboard does not wait for all photo history</span></div>
+        <div class="stat" style="display:flex;flex-direction:column;gap:6px;"><small>Conflict policy</small><strong>Quarantine</strong><span>Same Report ID + changed content is review-only</span></div>
+      </div>
+    </section>
+
+    <section id="overviewPanel" class="content-panel active">
+      <div class="cards">
+        <div class="surface card"><div class="k">Total Laporan</div><div class="v" id="totalRows">0</div></div>
+        <div class="surface card"><div class="k">Total Biaya</div><div class="v" id="totalExpense">Rp 0</div></div>
+        <div class="surface card"><div class="k">Dikecualikan dari Pemeriksaan</div><div class="v" id="fraudCount">0</div><div class="subv">Ditolak / dummy / belum selesai</div></div>
+        <div class="surface card"><div class="k">Kualitas Data</div><div class="v" id="potentialFraudCount">0</div><div class="subv">Kendala data list, detail, KM, atau biaya</div></div>
+        <div class="surface card"><div class="k">Detail Belum Diverifikasi</div><div class="v" id="highCount">0</div><div class="subv">Bukan bukti penyimpangan driver</div></div>
+        <div class="surface card"><div class="k">Tidak Ada Temuan Aktif</div><div class="v" id="validCount">0</div><div class="subv">Sesuai aturan saat ini</div></div>
+      </div>
+    </section>
+
+    <section id="bbmPanel" class="content-panel">
+      <div class="surface bbm-panel">
+        <div class="metric-header">
+          <div>
+            <h3>Prioritas Pemeriksaan BBM</h3>
+            <div class="bbm-panel-note">KHUSUS TEST. Kategori digunakan untuk prioritas pemeriksaan dan triase kualitas data, bukan konfirmasi fraud. Penilaian BBM per KM belum aktif sampai threshold, denominator, dan aturan KM ekstrem disetujui. Laporan yang detailnya belum diverifikasi bukan bukti penyimpangan driver.</div>
+            <div class="bbm-panel-note"><b>Antrean:</b> Dikecualikan dari Pemeriksaan → Detail Belum Diverifikasi / Detail Tidak Tersedia → Kualitas Data → Prioritas Pemeriksaan BBM → Tidak Ada Temuan Aktif.</div>
+          </div>
+          <div class="legend">
+            <span class="badge badge-red">Dikecualikan dari Pemeriksaan</span>
+            <span class="badge badge-orange">Kualitas Data</span>
+            <span class="badge badge-yellow">Detail Belum Diverifikasi</span>
+          </div>
+        </div>
+        <div class="bbm-summary">
+          <div class="bbm-card"><div class="k">Kategori Unik</div><div class="v" id="bbmUniqueCount">0</div></div>
+          <div class="bbm-card"><div class="k">Kualitas Data</div><div class="v" id="bbmDataAnomalyCount">0</div></div>
+          <div class="bbm-card"><div class="k">Dikecualikan</div><div class="v" id="bbmHighCount">0</div></div>
+          <div class="bbm-card"><div class="k">Detail Belum Diverifikasi</div><div class="v" id="bbmMediumCount">0</div></div>
+        </div>
+        <div class="tablebox">
+          <table class="trend-table" style="min-width:1500px;">
+            <thead>
+              <tr>
+                <th>Kategori Utama Kasus</th><th>Eligibility Status</th><th>Report ID</th><th>Driver / Kendaraan</th><th>Data Perjalanan</th><th>Semua Alasan yang Ditemukan</th><th>Status Verifikasi dan Bukti</th><th>BBM / Biaya</th><th>Langkah Berikutnya</th>
+              </tr>
+            </thead>
+            <tbody id="bbmTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="metricsPanel" class="content-panel">
+      <div class="metrics-grid">
+      <div class="surface metric-panel">
+        <div class="metric-header">
+          <div>
+            <h3>Historical & Trend Metrics</h3>
+            <div class="sub-text">Trend berdasarkan hub, tanggal, KM, dan fuel dari filtered dataset.</div>
+          </div>
+          <div class="clickable-chip" onclick="focusLiveRows()">Focus raw rows</div>
+        </div>
+        <div class="trend-summary">
+          <div class="trend-chip"><div class="k">Trend Hub</div><div class="v" id="trendHubName">-</div></div>
+          <div class="trend-chip"><div class="k">Active Dates</div><div class="v" id="trendDateCount">0</div></div>
+          <div class="trend-chip"><div class="k">Total KM</div><div class="v" id="trendTotalKm">0</div></div>
+          <div class="trend-chip"><div class="k">Total Fuel</div><div class="v" id="trendTotalFuel">Rp 0</div></div>
+        </div>
+        <table class="trend-table">
+          <thead>
+            <tr><th>Tanggal</th><th>Hub</th><th class="num">Laporan</th><th class="num">KM</th><th class="num">BBM</th><th>Trend</th></tr>
+          </thead>
+          <tbody id="trendTbody"></tbody>
+        </table>
+      </div>
+      <div class="surface metric-panel">
+        <div class="metric-header">
+          <div>
+            <h3>Top Hub Metrics</h3>
+            <div class="sub-text">Klik chip hub atau baris raw data untuk drill-down cepat.</div>
+          </div>
+        </div>
+        <table class="trend-table">
+          <thead>
+            <tr><th>Hub</th><th class="num">Laporan</th><th class="num">KM</th><th class="num">BBM</th></tr>
+          </thead>
+          <tbody id="hubTrendTbody"></tbody>
+        </table>
+      </div>
+      </div>
+    </section>
+
+    <section id="rawdataPanel" class="content-panel">
+      <div class="pagination" aria-label="Table pagination">
+      <button id="prevPageBtn">Sebelumnya</button>
+      <span class="rowcount" id="pageInfo"></span>
+      <button id="nextPageBtn">Berikutnya</button>
+      <label class="hint">Baris/halaman <select id="pageSizeSelect"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option><option value="500">500</option></select></label>
+      <span class="hint">Tabel ditampilkan bertahap agar browser tetap ringan; export tetap memakai semua data hasil filter.</span>
+    </div>
+
+      <div class="surface tablebox">
+        <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cluster</th>
+            <th>Hub</th>
+            <th>Info Driver</th>
+            <th>Detail Perjalanan</th>
+            <th>Tanggal Mulai</th>
+            <th>Tanggal Akhir</th>
+            <th>Dana Dicairkan</th>
+            <th>Biaya</th>
+            <th>Selisih Biaya vs Estimasi</th>
+            <th>Kategori Pemeriksaan</th>
+            <th>Bukti</th>
+            <th>KM & BBM</th>
+            <th>Tindak Lanjut</th>
+            <th>Alasan HL</th>
+            <th>Feedback HL</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      </div>
+    </section>
+  </div>
+  </div>
+
+  <div id="syncToast" class="toast">
+    <div class="title" id="syncToastTitle">Extension status</div>
+    <div id="syncToastBody">Waiting for Tokgistic sync extension connection.</div>
+  </div>
+
+  <div class="modal-backdrop" id="detailModal">
+    <div class="modal small">
+      <div class="modal-head">
+        <div class="modal-title" id="detailTitle">Detail KM & BBM</div>
+        <button class="btn-ghost" onclick="closeModal('detailModal')">Tutup</button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="imageModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title" id="imageTitle">Pratinjau Bukti</div>
+        <button class="btn-ghost" onclick="closeModal('imageModal')">Tutup</button>
+      </div>
+      <div class="modal-body" id="imageBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="editorModal">
+    <div class="modal small">
+      <div class="modal-head">
+        <div class="modal-title" id="editorTitle">Edit Catatan</div>
+        <button class="btn-ghost" onclick="closeModal('editorModal')">Tutup</button>
+      </div>
+      <div class="modal-body">
+        <div class="editor">
+          <textarea id="editorTextarea"></textarea>
+          <div class="editor-actions">
+            <button class="btn-ghost" onclick="closeModal('editorModal')">Batal</button>
+            <button class="btn-primary" onclick="saveEditorValue()">Simpan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let RAW_REPORTS = [];
+    const DATA_AUDIT_URL = 'embedded:data_audit.json';
+    const EMBEDDED_DATA_AUDIT = {"total_rows":0,"reports":[]};
+    const LIVE_SYNC_EVENT = 'TOKGISTIC_LIVE_DATA';
+    const LIVE_STATUS_EVENT = 'TOKGISTIC_LIVE_STATUS';
+    const TOKGISTIC_EXTENSION_ID = 'phdmgknhngohcadpilfgblmpccojjjfh';
+    async function loadAuditData() {
+      const payload = EMBEDDED_DATA_AUDIT;
+      const reports = Array.isArray(payload) ? payload : payload.reports;
+      if (!Array.isArray(reports)) throw new Error('embedded data_audit.json must contain a reports array');
+      return reports;
+    }
+    const EVIDENCE_MAP = {};
+  </script>
+  <script>
+    const CLUSTER_RULES = {
+      EAST: ['bekasi utara', 'cakung', 'cengkareng', 'duren sawit', 'halim', 'kemayoran', 'matraman', 'penjaringan', 'pondok melati', 'tanahabang', 'jatinegara'],
+      SOUTH: ['bogor', 'cibinong', 'cikupa', 'cilandak', 'cinangka', 'cipondoh', 'depok', 'legok', 'pondok aren', 'karang tengah'],
+      WEST: ['balaraja', 'batuceper', 'cengklong', 'kalideres', 'kembangan', 'kosambi', 'neglasari', 'pakuhaji', 'tambora']
+    };
+    const KM_RATIO = { BV: 10, CDE: 7, CDD: 5 };
+    const FUEL_PRICE = { PERTALITE: 10000, SOLAR: 6800, UNKNOWN: 0 };
+    const STORAGE_KEY = 'tokgistic_audit_management_clean_v1';
+    const DEFAULT_AI_REASON = 'No active BBM audit rule triggered under the current frozen specification; visual evidence was not reviewed.';
+    let sortDesc = true;
+    let tableRows = [];
+    let currentPage = 1;
+    let currentFilteredRows = [];
+    let highExpenseThreshold = 0;
+    let bbmExpenseThresholdDisabled = 0;
+    let bbmExpensePerKmThresholdDisabled = 0;
+    let activeEditor = null;
+    let refreshTimer = null;
+    let refreshInFlight = false;
+    let lastRefreshAt = '';
+    let controlsBound = false;
+    let extensionConnected = false;
+    let extensionToastTimer = null;
+
+    function byId(id) { return document.getElementById(id); }
+    function esc(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+    function money(value) { return 'Rp ' + Number(value || 0).toLocaleString('id-ID'); }
+    const CATEGORY_LABELS_ID = {
+      'WORKFLOW EXCLUSION — REJECTED': 'Dikecualikan — Laporan Ditolak',
+      'WORKFLOW EXCLUSION — DUMMY/TEST': 'Dikecualikan — Dummy / Test',
+      'WORKFLOW EXCLUSION — NOT COMPLETED': 'Dikecualikan — Laporan Belum Selesai',
+      'DETAIL UNAVAILABLE': 'Detail Tidak Tersedia',
+      'DETAIL NOT VERIFIED': 'Detail Belum Diverifikasi',
+      'DATA QUALITY — LIST/DETAIL MISMATCH': 'Kualitas Data — Data List dan Detail Tidak Cocok',
+      'DATA QUALITY — NEGATIVE KM': 'Kualitas Data — KM Negatif',
+      'DATA QUALITY — ODOMETER MISMATCH': 'Kualitas Data — Angka Odometer Tidak Cocok',
+      'DATA QUALITY — ODOMETER MISSING': 'Kualitas Data — Angka Odometer Tidak Lengkap',
+      'DATA QUALITY — EXPENSE MISMATCH': 'Kualitas Data — Nominal Biaya Tidak Cocok',
+      'DATA QUALITY — EXTREME KM': 'Kualitas Data — KM Tidak Wajar',
+      'DATA QUALITY — ZERO KM': 'Kualitas Data — KM Nol',
+      'NON-BBM EXPENSE ONLY': 'Hanya Biaya Non-BBM',
+      'DUPLICATE EXPENSE METADATA INDICATION': 'Indikasi Metadata Biaya Duplikat',
+      'BBM INVESTIGATION PRIORITY': 'Prioritas Pemeriksaan BBM',
+      'NO ACTIVE FLAG UNDER CURRENT RULES': 'Tidak Ada Temuan Aktif Berdasarkan Aturan Saat Ini'
+    };
+    const ELIGIBILITY_LABELS_ID = {
+      'Excluded': 'Dikecualikan',
+      'Not Eligible': 'Belum Layak Ditinjau',
+      'Data Quality': 'Perlu Perbaikan Kualitas Data',
+      'No Active Flag': 'Tidak Ada Temuan Aktif',
+      'BBM Review': 'Layak Ditinjau BBM'
+    };
+    const STATUS_LABELS_ID = {
+      'DETAIL VERIFIED': 'Detail Terverifikasi',
+      'DETAIL NOT VERIFIED': 'Detail Belum Diverifikasi',
+      'DETAIL UNAVAILABLE': 'Detail Tidak Tersedia',
+      'ODOMETER RECONCILED': 'Odometer Sesuai',
+      'ODOMETER MISMATCH': 'Odometer Tidak Cocok',
+      'ODOMETER MISSING': 'Odometer Tidak Lengkap',
+      'LIST/DETAIL MATCH': 'List dan Detail Sesuai',
+      'LIST/DETAIL MISMATCH': 'List dan Detail Tidak Cocok',
+      'EXPENSE RECONCILED': 'Biaya Sesuai',
+      'EXPENSE MISMATCH': 'Biaya Tidak Cocok'
+    };
+    function displayCategory(value) { return CATEGORY_LABELS_ID[value] || value || '-'; }
+    function displayEligibility(value) { return ELIGIBILITY_LABELS_ID[value] || value || '-'; }
+    function displayStatus(value) { return STATUS_LABELS_ID[value] || value || '-'; }
+    function displayReason(value) {
+      return String(value || '-')
+        .replace('Detail has not yet been checked; this is not driver anomaly evidence.', 'Detail belum diverifikasi; ini bukan bukti penyimpangan driver.')
+        .replace('Evidence metadata available; access not verified; visual not reviewed.', 'Metadata bukti tersedia; akses belum diverifikasi; isi bukti belum ditinjau visual.')
+        .replace('Rejected report.', 'Laporan ditolak.')
+        .replace('Dummy/test/non-operational context.', 'Konteks dummy/test/non-operasional.')
+        .replace('Workflow status', 'Status alur')
+        .replace('is not completed.', 'belum selesai.')
+        .replace('List KM', 'KM dari list')
+        .replace('differs from detail KM', 'berbeda dari KM detail')
+        .replace('Negative KM blocks BBM scoring.', 'KM negatif memblokir penilaian BBM.')
+        .replace('Odometer pre/post does not reconcile with detail KM.', 'Odometer awal/akhir tidak sesuai dengan KM detail.')
+        .replace('Odometer pre/post is missing.', 'Odometer awal/akhir tidak lengkap.')
+        .replace('Expense item sum differs from report total.', 'Total item biaya berbeda dari total laporan.')
+        .replace('Extreme KM is unresolved and blocked from active scoring.', 'KM tidak wajar belum selesai ditinjau dan memblokir penilaian aktif.')
+        .replace('Zero KM blocks Fuel/KM scoring.', 'KM nol memblokir penilaian BBM per KM.')
+        .replace('No Fuel item observed in verified detail.', 'Tidak ada item BBM pada detail yang sudah diverifikasi.')
+        .replace('Duplicate expense metadata indication from controlled validation.', 'Ada indikasi metadata biaya duplikat dari validasi terkontrol.')
+        .replace('No active flag under currently approved rules.', 'Tidak ada temuan aktif berdasarkan aturan yang disetujui saat ini.')
+        .replace('Synthetic UAT fixture only: detail access attempted but failed/unavailable; not driver anomaly evidence.', 'Fixture UAT sintetis: akses detail pernah dicoba tetapi gagal/tidak tersedia; bukan bukti penyimpangan driver.')
+        .replace('Synthetic UAT fixture only: attempted-but-failed detail state.', 'Fixture UAT sintetis: status detail gagal/tidak tersedia.')
+        .replace('Synthetic UAT fixture only: odometer mismatch branch.', 'Fixture UAT sintetis: cabang odometer tidak cocok.');
+    }
+    function displayAction(value) {
+      return String(value || '-')
+        .replace('Do not score; exclude from active BBM investigation.', 'Jangan dinilai; keluarkan dari pemeriksaan BBM aktif.')
+        .replace('Validate or complete workflow first.', 'Validasi atau selesaikan alur laporan terlebih dahulu.')
+        .replace('Verify GTL detail before any driver conclusion.', 'Verifikasi detail GTL sebelum menarik kesimpulan terhadap driver.')
+        .replace('Resolve data mismatch before BBM scoring.', 'Selesaikan ketidaksesuaian data sebelum penilaian BBM.')
+        .replace('Review as non-BBM expense, not BBM consumption issue.', 'Tinjau sebagai biaya non-BBM, bukan isu konsumsi BBM.')
+        .replace('Review duplicate metadata before action.', 'Tinjau indikasi metadata duplikat sebelum tindak lanjut.')
+        .replace('Use as review-priority signal only; do not treat as fraud proof.', 'Gunakan hanya sebagai sinyal prioritas pemeriksaan; jangan dianggap bukti fraud.')
+        .replace('No action required under current rules.', 'Tidak perlu tindak lanjut berdasarkan aturan saat ini.');
+    }
+    function displayFuelKmStatus(value) {
+      return String(value || FUEL_KM_SCORING_STATUS).replace('DISABLED — threshold, denominator rule, and extreme-KM rule not approved', 'Belum diaktifkan — threshold, denominator, dan aturan KM ekstrem belum disetujui');
+    }
+    function displayEvidenceStatus(value) {
+      return String(value || '-')
+        .replace('METADATA AVAILABLE', 'Metadata Tersedia')
+        .replace('METADATA UNKNOWN', 'Metadata Tidak Diketahui')
+        .replace('ACCESS NOT VERIFIED', 'Akses Belum Diverifikasi')
+        .replace('VISUAL NOT REVIEWED', 'Visual Belum Ditinjau')
+        .replace('OCR NOT PERFORMED', 'OCR Belum Dilakukan');
+    }
+    function normalizeDate(value) {
+      const text = String(value || '').trim();
+      if (!text || text === '0001-01-01') return '';
+      return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+    }
+    function normalizeStatus(value, fallback = 'undone') {
+      const text = String(value == null || value === '' ? fallback : value).trim().toLowerCase();
+      return text || fallback;
+    }
+    function chooseHub(report) {
+      const source = report.trip?.source || '';
+      const destination = report.trip?.destination || '';
+      return source && source !== destination ? source : (source || destination || '-');
+    }
+    function deriveCluster(report, hubName, source, destination) {
+      const driverTag = String(report.driver_name || '').toLowerCase();
+      if (driverTag.includes('mm driver')) return 'Middle Mile';
+      const text = [hubName, source, destination].join(' ').toLowerCase();
+      for (const [cluster, needles] of Object.entries(CLUSTER_RULES)) {
+        if (needles.some((needle) => text.includes(needle))) return cluster;
+      }
+      return 'OTHER';
+    }
+    function parseDriverParts(driverName) {
+      const parts = String(driverName || '').split('|').map((item) => item.trim()).filter(Boolean);
+      return {
+        name: parts[0] || '-',
+        idText: parts[1] || '-',
+        tag: parts.slice(2).join(' | ') || '-'
+      };
+    }
+    function parseUnitType(vehiclePlate) {
+      const text = String(vehiclePlate || '').toUpperCase();
+      if (text.includes('CDD')) return 'CDD';
+      if (text.includes('CDE')) return 'CDE';
+      if (text.includes('BV')) return 'BV';
+      return 'UNKNOWN';
+    }
+    function defaultFuelType(unitType) {
+      if (unitType === 'BV') return 'PERTALITE';
+      if (unitType === 'CDE' || unitType === 'CDD') return 'SOLAR';
+      return 'UNKNOWN';
+    }
+    function rowKey(row) { return [row.reportId, row.driverId, row.startDate, row.hub].join('|'); }
+    function isLocked(row) {
+      return ['done', 'completed', 'paid'].includes(row.disbursementStatus) || ['done', 'completed', 'paid'].includes(row.settlementStatus) || ['done', 'completed', 'paid'].includes(row.tokgisticStatus);
+    }
+    function defaultAction(row) { return isLocked(row) ? 'ALREADY DISBURSED' : 'PENDING'; }
+    function expectedFuelCost(kmPostDrive, unitType, fuelType) {
+      const ratio = KM_RATIO[unitType] || 0;
+      const price = FUEL_PRICE[fuelType] || 0;
+      if (!ratio || !price || !kmPostDrive) return 0;
+      return Math.ceil(Number(kmPostDrive) / ratio) * price;
+    }
+    function aiDetection(row) {
+      if (!row.evidenceUrls.length) {
+        return { label: 'UNCLEAR', reason: 'Tidak ada evidence foto yang tersedia dari source untuk dicek otomatis.' };
+      }
+      return { label: 'NO ACTIVE FLAG UNDER CURRENT RULES', reason: DEFAULT_AI_REASON };
+    }
+    function computeHighThreshold(rows) {
+      const values = rows.map((row) => row.expenseValue).filter((value) => value > 0).sort((a, b) => a - b);
+      if (!values.length) return 0;
+      return values[Math.floor(values.length * 0.75)] || values[values.length - 1] || 0;
+    }
+    function percentile(values, p) {
+      const sorted = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+      if (!sorted.length) return 0;
+      const idx = (sorted.length - 1) * p;
+      const low = Math.floor(idx);
+      const high = Math.ceil(idx);
+      if (low === high) return sorted[low];
+      return sorted[low] * (high - idx) + sorted[high] * (idx - low);
+    }
+    const FUEL_KM_SCORING_STATUS = 'DISABLED — threshold, denominator rule, and extreme-KM rule not approved';
+    const DETAIL_BASELINE = {
+      '18852': { status: 'DETAIL VERIFIED', detailKm: 117, preKm: 280695, postKm: 280812, fuelAmount: 150000, nonFuelAmount: 57000, expenseItemSum: 207000, hasFuel: true, reasons: ['Fuel and non-Fuel expense split available'] },
+      '18851': { status: 'DETAIL VERIFIED', detailKm: 33, preKm: 205206, postKm: 205239, fuelAmount: 0, nonFuelAmount: 33000, expenseItemSum: 33000, hasFuel: false, reasons: ['No Fuel item observed'] },
+      '18850': { status: 'DETAIL VERIFIED', detailKm: 53, preKm: 325708, postKm: 325761, fuelAmount: 92000, nonFuelAmount: 111500, expenseItemSum: 203500, hasFuel: true, reasons: ['Liter format unresolved'] },
+      '3164': { status: 'DETAIL VERIFIED', detailKm: 1, preKm: 124188, postKm: 124189, fuelAmount: 350000, nonFuelAmount: 0, expenseItemSum: 350000, hasFuel: true, reasons: ['Low KM denominator; Fuel/KM scoring disabled'] },
+      '3381': { status: 'DETAIL VERIFIED', detailKm: 2000025, preKm: 258296, postKm: 2258321, fuelAmount: 311000, nonFuelAmount: 0, expenseItemSum: 311000, hasFuel: true, reasons: ['Extreme KM from post-drive odometer'] },
+      '3570': { status: 'DETAIL VERIFIED', detailKm: 2658025, preKm: 295203, postKm: 2953228, fuelAmount: 435000, nonFuelAmount: 105000, expenseItemSum: 540000, hasFuel: true, reasons: ['Extreme KM from post-drive odometer'] },
+      '2323': { status: 'DETAIL VERIFIED', detailKm: 2607140, preKm: 289494, postKm: 2896634, fuelAmount: 0, nonFuelAmount: 81000, expenseItemSum: 81000, hasFuel: false, reasons: ['Extreme KM; no Fuel item observed'] },
+      '11670': { status: 'DETAIL VERIFIED', detailKm: -279699, preKm: 461368, postKm: 181669, fuelAmount: 650000, nonFuelAmount: 0, expenseItemSum: 650000, hasFuel: true, reasons: ['List/detail mismatch; negative KM'] },
+      '5318': { status: 'DETAIL VERIFIED', detailKm: -156346, preKm: 159627, postKm: 3281, fuelAmount: 600000, nonFuelAmount: 0, expenseItemSum: 600000, hasFuel: true, duplicateMetadata: true, reasons: ['Rejected; duplicate expense metadata indication; negative KM'] },
+      '5810': { status: 'DETAIL VERIFIED', detailKm: 0, preKm: 100, postKm: 100, fuelAmount: 9000000, nonFuelAmount: 0, expenseItemSum: 9000000, hasFuel: true, dummyTest: true, reasons: ['Rejected/test route; zero KM'] },
+      '15640': { status: 'DETAIL VERIFIED', detailKm: 190, preKm: 185221, postKm: 185411, fuelAmount: 650000, nonFuelAmount: 257000, expenseItemSum: 907000, hasFuel: true, reasons: ['Audit correction context; Fuel/KM scoring disabled'] },
+      '15806': { status: 'DETAIL VERIFIED', detailKm: 30, preKm: 464663, postKm: 464693, fuelAmount: 550000, nonFuelAmount: 175000, expenseItemSum: 725000, hasFuel: true, reasons: ['Audit odometer edit context; Fuel/KM scoring disabled'] },
+      '4187': { status: 'DETAIL VERIFIED', detailKm: 1, preKm: 4318, postKm: 4319, fuelAmount: 122109, nonFuelAmount: 0, expenseItemSum: 122109, hasFuel: true, reasons: ['Low KM denominator; Fuel/KM scoring disabled'] },
+      '18808': { status: 'DETAIL VERIFIED', detailKm: 42, fuelAmount: 50000, nonFuelAmount: 30000, expenseItemSum: 80000, hasFuel: true, reasons: ['Rejected; review reason context'] },
+      '14044': { status: 'DETAIL VERIFIED', detailKm: 0, preKm: 10, postKm: 10, fuelAmount: 0, nonFuelAmount: 123, expenseItemSum: 123, hasFuel: false, dummyTest: true, reasons: ['Dummy/test route; no Fuel item'] },
+      '15315': { status: 'DETAIL VERIFIED', detailKm: 63, preKm: 166417, postKm: 166480, fuelAmount: 200000, nonFuelAmount: 0, expenseItemSum: 200000, hasFuel: true, duplicateMetadata: true, reasons: ['Rejected; duplicate expense metadata indication'] },
+      '18173': { status: 'DETAIL VERIFIED', detailKm: -319, preKm: 217803, postKm: 217484, fuelAmount: 120000, nonFuelAmount: 148500, expenseItemSum: 268500, hasFuel: true, reasons: ['List/detail mismatch; negative KM'] },
+      '16213': { status: 'DETAIL VERIFIED', detailKm: -8791, preKm: 464867, postKm: 456076, fuelAmount: 500000, nonFuelAmount: 0, expenseItemSum: 500000, hasFuel: true, reasons: ['List/detail mismatch; negative KM'] },
+      '7976': { status: 'DETAIL VERIFIED', detailKm: -2811090, preKm: 3123513, postKm: 312423, fuelAmount: 395000, nonFuelAmount: 0, expenseItemSum: 395000, hasFuel: true, reasons: ['List/detail mismatch; negative KM'] },
+      '7314': { status: 'DETAIL VERIFIED', detailKm: 0, preKm: 207908, postKm: 207908, fuelAmount: 522000, nonFuelAmount: 0, expenseItemSum: 522000, hasFuel: true, duplicateMetadata: true, reasons: ['Zero KM; duplicate expense metadata indication'] },
+      'UAT-DETAIL-UNAVAILABLE-001': { status: 'DETAIL UNAVAILABLE', unavailableReason: 'Synthetic UAT fixture only: detail access attempted but failed/unavailable; not driver anomaly evidence.', reasons: ['Synthetic UAT fixture only: attempted-but-failed detail state.'] },
+      'UAT-ODOMETER-MISMATCH-001': { status: 'DETAIL VERIFIED', detailKm: 50, preKm: 1000, postKm: 1049, fuelAmount: 100000, nonFuelAmount: 0, expenseItemSum: 100000, hasFuel: true, reasons: ['Synthetic UAT fixture only: odometer mismatch branch.'] }
+    };
+    const UAT_SYNTHETIC_REPORTS = [
+      {
+        id: 'UAT-DETAIL-UNAVAILABLE-001',
+        driver_id: 'UAT_DETAIL_UNAVAILABLE',
+        driver_name: 'UAT Detail Unavailable | UAT_DETAIL_UNAVAILABLE | Synthetic Test Driver',
+        vehicle_plate: 'UAT-001/ CDE',
+        start_date: '2026-10-09',
+        end_date: '2026-10-09',
+        status: 'completed',
+        actual_distance: 10,
+        estimate_distance: 10,
+        total_amount: '10000',
+        cash_disbursement: '10000',
+        trip: { source: 'UAT Fixture Hub', destination: 'UAT Fixture Hub' },
+        daily_settlement: { done: '', undone: '' }
+      },
+      {
+        id: 'UAT-ODOMETER-MISMATCH-001',
+        driver_id: 'UAT_ODOMETER_MISMATCH',
+        driver_name: 'UAT Odometer Mismatch | UAT_ODOMETER_MISMATCH | Synthetic Test Driver',
+        vehicle_plate: 'UAT-002/ CDE',
+        start_date: '2026-10-09',
+        end_date: '2026-10-09',
+        status: 'completed',
+        actual_distance: 50,
+        estimate_distance: 50,
+        total_amount: '100000',
+        cash_disbursement: '100000',
+        trip: { source: 'UAT Fixture Hub', destination: 'UAT Fixture Hub' },
+        daily_settlement: { done: '', undone: '' }
+      }
+    ];
+    function calculateBbmThresholds() {
+      bbmExpenseThresholdDisabled = 0;
+      bbmExpensePerKmThresholdDisabled = 0;
+    }
+    function addReason(reasons, reason) {
+      if (reason && !reasons.includes(reason)) reasons.push(reason);
+    }
+    function isDummyTest(row) {
+      const raw = row.raw || {};
+      const text = `${row.routeText} ${row.reviewReason} ${raw.review_reason || ''}`.toLowerCase();
+      return text.includes('dummy') || text.includes('test hub') || text.includes(' test');
+    }
+    function evaluateBbmPriority(row) {
+      const detail = row.detailBaseline || null;
+      const reasons = [];
+      const statuses = [];
+      const actions = [];
+      const listKm = Number(row.actualDistance || 0);
+      const reportTotal = Number(row.expenseValue || 0);
+      const statusText = String(row.tokgisticStatus || '').toLowerCase();
+      const dummy = isDummyTest(row) || !!detail?.dummyTest;
+      const completed = statusText === 'completed';
+      const rejected = statusText === 'rejected';
+      const detailVerified = detail?.status === 'DETAIL VERIFIED';
+      const detailUnavailable = detail?.status === 'DETAIL UNAVAILABLE';
+      let primary = 'NO ACTIVE FLAG UNDER CURRENT RULES';
+      let priority = 'No Active Flag';
+      let detailKm = detailVerified ? Number(detail.detailKm) : null;
+      let calculatedKm = detailVerified && Number.isFinite(detail.preKm) && Number.isFinite(detail.postKm) ? Number(detail.postKm) - Number(detail.preKm) : null;
+      let fuelAmount = detailVerified ? Number(detail.fuelAmount || 0) : 0;
+      let nonFuelAmount = detailVerified ? Number(detail.nonFuelAmount || 0) : 0;
+      let expenseItemSum = detailVerified ? Number(detail.expenseItemSum || 0) : null;
+      let hasFuel = detailVerified ? !!detail.hasFuel : false;
+      statuses.push(detailVerified ? 'DETAIL VERIFIED' : (detailUnavailable ? 'DETAIL UNAVAILABLE' : 'DETAIL NOT VERIFIED'));
+      if (detailUnavailable) addReason(reasons, detail.unavailableReason || 'Detail access was attempted but unavailable; this is not driver anomaly evidence.');
+      if (!detailVerified && !detailUnavailable) addReason(reasons, 'Detail has not yet been checked; this is not driver anomaly evidence.');
+      if (detailVerified && calculatedKm != null && calculatedKm === detailKm) statuses.push('ODOMETER RECONCILED');
+      if (detailVerified && calculatedKm != null && calculatedKm !== detailKm) statuses.push('ODOMETER MISMATCH');
+      if (detailVerified && detailKm === listKm) statuses.push('LIST/DETAIL MATCH');
+      if (detailVerified && detailKm !== listKm) statuses.push('LIST/DETAIL MISMATCH');
+      if (detailVerified && expenseItemSum === reportTotal) statuses.push('EXPENSE RECONCILED');
+      if (detailVerified && expenseItemSum !== reportTotal) statuses.push('EXPENSE MISMATCH');
+      (detail?.reasons || []).forEach((reason) => addReason(reasons, reason));
+      if (row.evidenceUrls.length) addReason(reasons, 'Evidence metadata available; access not verified; visual not reviewed.');
+      if (rejected) {
+        primary = 'WORKFLOW EXCLUSION — REJECTED'; priority = 'Excluded'; addReason(reasons, 'Rejected report.');
+      } else if (dummy) {
+        primary = 'WORKFLOW EXCLUSION — DUMMY/TEST'; priority = 'Excluded'; addReason(reasons, 'Dummy/test/non-operational context.');
+      } else if (!completed) {
+        primary = 'WORKFLOW EXCLUSION — NOT COMPLETED'; priority = 'Excluded'; addReason(reasons, `Workflow status ${row.tokgisticStatus || '-'} is not completed.`);
+      } else if (detailUnavailable) {
+        primary = 'DETAIL UNAVAILABLE'; priority = 'Not Eligible';
+      } else if (!detailVerified) {
+        primary = 'DETAIL NOT VERIFIED'; priority = 'Not Eligible';
+      } else if (detailKm !== listKm) {
+        primary = 'DATA QUALITY — LIST/DETAIL MISMATCH'; priority = 'Data Quality'; addReason(reasons, `List KM ${listKm.toLocaleString('id-ID')} differs from detail KM ${detailKm.toLocaleString('id-ID')}.`);
+      } else if (detailKm < 0) {
+        primary = 'DATA QUALITY — NEGATIVE KM'; priority = 'Data Quality';
+      } else if (calculatedKm != null && calculatedKm !== detailKm) {
+        primary = 'DATA QUALITY — ODOMETER MISMATCH'; priority = 'Data Quality';
+      } else if (detail.preKm == null || detail.postKm == null) {
+        primary = 'DATA QUALITY — ODOMETER MISSING'; priority = 'Data Quality';
+      } else if (expenseItemSum !== reportTotal) {
+        primary = 'DATA QUALITY — EXPENSE MISMATCH'; priority = 'Data Quality';
+      } else if (detailKm > 1000) {
+        primary = 'DATA QUALITY — EXTREME KM'; priority = 'Data Quality'; addReason(reasons, 'Extreme KM is unresolved and blocked from active scoring.');
+      } else if (detailKm === 0) {
+        primary = 'DATA QUALITY — ZERO KM'; priority = 'Data Quality'; addReason(reasons, 'Zero KM blocks Fuel/KM scoring.');
+      } else if (!hasFuel) {
+        primary = 'NON-BBM EXPENSE ONLY'; priority = 'Not Eligible'; addReason(reasons, 'No Fuel expense item exists.');
+      } else if (detail.duplicateMetadata) {
+        primary = 'DUPLICATE EXPENSE METADATA INDICATION'; priority = 'Metadata Review'; addReason(reasons, 'Duplicate metadata indication only; manual verification required.');
+      }
+      actions.push('Use as review-priority signal only; do not treat as fraud proof.');
+      if (primary !== 'NO ACTIVE FLAG UNDER CURRENT RULES') actions.push('Ikuti alur kategori utama terlebih dahulu sebelum melakukan penilaian BBM.');
+      if (FUEL_KM_SCORING_STATUS.includes('DISABLED')) actions.push('Penilaian BBM per KM belum aktif sampai threshold, denominator, dan aturan KM ekstrem disetujui.');
+      return {
+        level: primary,
+        bucket: priority,
+        primaryCaseCategory: primary,
+        priorityLevel: priority,
+        allMatchedReasons: reasons,
+        verificationStatuses: statuses,
+        evidenceMetadataStatus: row.evidenceUrls.length ? 'METADATA AVAILABLE' : 'METADATA UNKNOWN',
+        evidenceAccessStatus: 'ACCESS NOT VERIFIED',
+        visualEvidenceReviewStatus: 'VISUAL NOT REVIEWED',
+        ocrStatus: 'OCR NOT PERFORMED',
+        detailKm,
+        preKm: detail?.preKm ?? null,
+        postKm: detail?.postKm ?? null,
+        calculatedKm,
+        fuelAmount,
+        nonFuelAmount,
+        expenseItemSum,
+        hasFuel,
+        fuelKmScoringStatus: FUEL_KM_SCORING_STATUS,
+        comparators: [`List KM: ${listKm.toLocaleString('id-ID')}`, `Detail KM: ${detailKm == null ? 'not verified' : detailKm.toLocaleString('id-ID')}`, `Fuel amount: ${money(fuelAmount)}`, `Non-Fuel amount: ${money(nonFuelAmount)}`],
+        actions,
+        score: primary === 'BBM INVESTIGATION PRIORITY' ? 2 : primary.startsWith('DATA QUALITY') ? 3 : primary.startsWith('WORKFLOW') ? 1 : 0
+      };
+    }
+    function flagLabel(row) {
+      return row.bbmPriority?.primaryCaseCategory || 'DETAIL NOT VERIFIED';
+    }
+    function flagReason(row) {
+      return row.bbmPriority?.allMatchedReasons?.join('; ') || 'Detail not verified; not anomaly evidence.';
+    }
+    function amountValue(value) {
+      if (value && typeof value === 'object' && value.amount != null) return Number(value.amount || 0);
+      return Number(value || 0);
+    }
+    function computeSettlementAudit(report, expenseValue, disbursementValue) {
+      const info = report.settlement_info || {};
+      const hasSettlementInfo = Object.keys(info).length > 0;
+      const workflowStatus = normalizeStatus(report.status || '');
+      const isFinalWorkflow = ['completed', 'rejected', 'cancelled'].includes(workflowStatus);
+      const previousOutstanding = amountValue(info.pre_drive_outstanding_debt_before_disbursement);
+      const postBeforeDisbursement = amountValue(info.post_drive_outstanding_debt_before_disbursement);
+      const postAfterDisbursement = amountValue(info.post_drive_outstanding_debt_after_disbursement);
+      const outstandingSettlement = amountValue(info.outstanding_settlement_amount);
+      const expectedPettyCash = amountValue(info.expected_petty_cash_amount);
+      const actualPettyCash = amountValue(info.actual_petty_cash_amount) || disbursementValue;
+      let status = 'UNKNOWN — SETTLEMENT INFO UNAVAILABLE';
+      if (hasSettlementInfo && !isFinalWorkflow) status = 'UNKNOWN — WORKFLOW NOT FINAL';
+      else if (hasSettlementInfo && outstandingSettlement > 0) status = 'SETTLEMENT DIFFERENCE — REVIEW REQUIRED';
+      else if (hasSettlementInfo && info.outstanding_settlement_status === 2) status = 'SETTLED — NO DIFFERENCE DETECTED';
+      else if (hasSettlementInfo && report.daily_settlement?.undone) status = 'UNSETTLED — LIABILITY DIRECTION UNKNOWN';
+      else if (hasSettlementInfo) status = 'UNKNOWN — BUSINESS DIRECTION NOT CONFIRMED';
+      const reasons = [];
+      if (!hasSettlementInfo) reasons.push('Settlement fields unavailable in source payload.');
+      if (hasSettlementInfo && !isFinalWorkflow) reasons.push(`Workflow status ${workflowStatus || 'unknown'} is not final; do not treat settlement as final.`);
+      if (previousOutstanding) reasons.push(`Carry-forward in: ${money(previousOutstanding)}`);
+      if (postBeforeDisbursement) reasons.push(`Outstanding before post-drive disbursement: ${money(postBeforeDisbursement)}`);
+      if (postAfterDisbursement) reasons.push(`Carry-forward out: ${money(postAfterDisbursement)}`);
+      if (outstandingSettlement) reasons.push(`Outstanding settlement amount: ${money(outstandingSettlement)}; liability direction UNKNOWN.`);
+      if (actualPettyCash && expenseValue && actualPettyCash !== expenseValue) reasons.push(`Cash vs expense differs: ${money(actualPettyCash)} vs ${money(expenseValue)}; liability direction UNKNOWN.`);
+      if (!reasons.length) reasons.push('Settlement source fields available; no settlement gap detected.');
+      return { previousOutstanding, postBeforeDisbursement, postAfterDisbursement, outstandingSettlement, expectedPettyCash, actualPettyCash, status, workflowStatus, isFinalWorkflow, hasSettlementInfo, reasons };
+    }
+    function computeKmContinuity(row, detail) {
+      const listKm = Number(row.actualDistance || 0);
+      const pre = detail?.preKm ?? null;
+      const post = detail?.postKm ?? null;
+      const calculated = pre != null && post != null ? Number(post) - Number(pre) : null;
+      const reasons = [];
+      let status = 'DETAIL NOT VERIFIED';
+      if (calculated != null) {
+        if (listKm === 0) { status = 'DATA QUALITY — ZERO KM'; reasons.push('List KM is zero; keep ZERO KM data-quality status even when odometer delta is also zero.'); }
+        else if (calculated < 0) { status = 'DATA QUALITY — NEGATIVE KM'; reasons.push('KM akhir lebih kecil dari KM awal.'); }
+        else if (Math.abs(calculated - listKm) > 2) { status = 'DATA QUALITY — ODOMETER MISMATCH'; reasons.push(`KM list ${listKm.toLocaleString('id-ID')} berbeda dari odometer ${calculated.toLocaleString('id-ID')}.`); }
+        else { status = 'KM CONTINUITY VERIFIED'; reasons.push('KM list selaras dengan odometer detail.'); }
+      }
+      return { status, listKm, preKm: pre, postKm: post, calculatedKm: calculated, reasons };
+    }
+    function computeFuelRatio(row, detail) {
+      const fuelLiter = Number(detail?.fuelLiter || detail?.refuelVolumeLiter || row.refuelVolumeLiter || 0);
+      const km = Number(detail?.detailKm || row.actualDistance || 0);
+      const ratio = km > 0 && fuelLiter > 0 ? fuelLiter / km : null;
+      return { vehicleType: row.unitType, km, fuelLiter, literPerKm: ratio, fuelPerKm: ratio, status: ratio == null ? 'UNAVAILABLE — ACTUAL LITER OR VALID KM MISSING' : 'LITER/KM AVAILABLE — THRESHOLD REVIEW REQUIRED' };
+    }
+    function transformReport(report) {
+      const hub = chooseHub(report);
+      const driver = parseDriverParts(report.driver_name);
+      const unitType = parseUnitType(report.vehicle_plate);
+      const fuelType = defaultFuelType(unitType);
+      const estimateDistance = Number(report.estimate_distance || 0);
+      const actualDistance = Number(report.actual_distance || 0);
+      const expenseValue = Number(report.settlement_info?.total_expense?.amount || report.total_expenses || report.total_amount || 0);
+      const disbursementValue = Number(report.cash_disbursement || report.settlement_info?.actual_petty_cash_amount?.amount || 0);
+      const settlementAudit = computeSettlementAudit(report, expenseValue, disbursementValue);
+      const row = {
+        raw: report,
+        reportId: String(report.id || '-'),
+        detailBaseline: DETAIL_BASELINE[String(report.id || '-')],
+        cluster: deriveCluster(report, hub, report.trip?.source, report.trip?.destination),
+        hub,
+        driverId: String(report.driver_id || '-'),
+        driverName: driver.name,
+        driverTag: driver.tag,
+        driverIdText: driver.idText,
+        vehiclePlate: String(report.vehicle_plate || '-'),
+        unitType,
+        fuelType,
+        routeId: String(report.id || '-'),
+        routeText: `${report.trip?.source || '-'} → ${report.trip?.destination || '-'}`,
+        routeSource: report.trip?.source || '-',
+        routeDestination: report.trip?.destination || '-',
+        startDate: normalizeDate(report.start_date),
+        endDate: normalizeDate(report.end_date),
+        estimateDistance,
+        actualDistance,
+        distanceGap: actualDistance - estimateDistance,
+        expensePerKm: actualDistance > 0 ? expenseValue / actualDistance : 0,
+        fuelTank: report.start_fuel == null ? '-' : String(report.start_fuel),
+        cashDisbursementValue: disbursementValue,
+        cashDisbursementText: money(disbursementValue),
+        expenseValue,
+        expenseText: money(expenseValue),
+        disbursementStatus: normalizeStatus(report.settlement_info?.petty_cash_transferred_status === 2 ? 'done' : (disbursementValue > 0 ? 'done' : 'undone')),
+        settlementStatus: normalizeStatus(report.settlement_info?.outstanding_settlement_status === 2 ? 'done' : (report.daily_settlement?.undone ? 'undone' : (report.daily_settlement?.done ? 'done' : 'undone'))),
+        tokgisticStatus: normalizeStatus(report.status || 'undone'),
+        evidenceUrls: [report.start_fuel_image].filter(Boolean).map((url) => String(url).replaceAll('\\u0026', '&')),
+        evidenceThumbs: [report.start_fuel_image].filter(Boolean).map((url) => {
+          const normalized = String(url).replaceAll('\\u0026', '&');
+          return EVIDENCE_MAP[normalized]?.thumb || '';
+        }),
+        evidenceFull: [report.start_fuel_image].filter(Boolean).map((url) => {
+          const normalized = String(url).replaceAll('\\u0026', '&');
+          return EVIDENCE_MAP[normalized]?.full || normalized;
+        }),
+        settlementAudit,
+        auditStatus: 'LIST DATA AUDITED — DETAIL EVIDENCE ON DEMAND',
+        evidenceVerificationStatus: report.start_fuel_image ? 'SOURCE URL PRESENT — ACCESS REQUIRES DETAIL/AUTH' : 'NO SOURCE PHOTO IN LIST PAYLOAD',
+        duplicateEvidenceStatus: report.start_fuel_image ? 'URL UNIQUE CHECK REQUIRED ACROSS CURRENT PAYLOAD' : 'NO PHOTO URL',
+        action: 'PENDING',
+        reasonHubLead: '',
+        feedbackHL: ''
+      };
+      row.estimatedFuelCost = expectedFuelCost(row.actualDistance, row.unitType, row.fuelType);
+      row.expenseVsEstimate = row.estimatedFuelCost > 0 ? row.expenseValue - row.estimatedFuelCost : 0;
+      row.aiDetection = aiDetection(row);
+      row.action = defaultAction(row);
+      return row;
+    }
+    function badgeClass(label) {
+      const value = String(label || '').toUpperCase();
+      if (value.includes('WORKFLOW EXCLUSION')) return 'badge badge-red';
+      if (value.includes('DATA QUALITY')) return 'badge badge-orange';
+      if (value.includes('DUPLICATE')) return 'badge badge-purple';
+      if (value.includes('NO ACTIVE FLAG')) return 'badge badge-green';
+      if (['DONE','COMPLETED','PAID','ALREADY DISBURSED'].includes(value)) return 'badge badge-blue';
+      if (['REJECTED'].includes(value)) return 'badge badge-red';
+      if (['CANCELLED'].includes(value)) return 'badge badge-gray';
+      if (['WAITING_POST_DRIVE','HL_REVIEW','FINOPS_REVIEW','PENDING','UNCLEAR'].includes(value)) return 'badge badge-yellow';
+      return 'badge badge-gray';
+    }
+    function loadSaved() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        tableRows.forEach((row) => {
+          const snapshot = saved[rowKey(row)];
+          if (!snapshot) return;
+          row.reasonHubLead = snapshot.reasonHubLead || '';
+          row.feedbackHL = snapshot.feedbackHL || '';
+          if (!isLocked(row) && snapshot.action) row.action = snapshot.action;
+        });
+      } catch (error) {
+        console.error('Failed to load saved notes', error);
+      }
+    }
+    function saveRow(row) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        saved[rowKey(row)] = { action: row.action, reasonHubLead: row.reasonHubLead, feedbackHL: row.feedbackHL };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      } catch (error) {
+        console.error('Failed to save row', error);
+      }
+    }
+    function getUniqueValues(items, getter) { return Array.from(new Set(items.map(getter).filter(Boolean))).sort((a, b) => a.localeCompare(b)); }
+    function getFilterValues(id) {
+      const el = typeof id === 'string' ? byId(id) : id;
+      if (!el) return ['All'];
+      try {
+        const values = JSON.parse(el.dataset.selected || '[]');
+        return Array.isArray(values) && values.length ? values : ['All'];
+      } catch (error) {
+        return el.value ? [el.value] : ['All'];
+      }
+    }
+    function setFilterValues(select, values) {
+      const normalized = Array.isArray(values) ? values.filter(Boolean) : [];
+      const finalValues = normalized.length && !normalized.includes('All') ? Array.from(new Set(normalized)) : ['All'];
+      select.dataset.selected = JSON.stringify(finalValues);
+      select.value = finalValues[0] || 'All';
+    }
+    function closeAllSmartSelects(except) {
+      document.querySelectorAll('.smart-select.open').forEach((node) => { if (node !== except) node.classList.remove('open'); });
+    }
+    function renderSmartSelect(select) {
+      if (!select || select.dataset.smartMulti !== 'true') return;
+      select.classList.add('smart-select-native');
+      let wrapper = select.nextElementSibling;
+      if (!wrapper || !wrapper.classList.contains('smart-select')) {
+        wrapper = document.createElement('div');
+        wrapper.className = 'smart-select';
+        wrapper.innerHTML = '<button type="button" class="smart-select-trigger"><span class="summary"></span><span class="caret">▾</span></button><div class="smart-select-panel"><input class="smart-select-search" type="text" placeholder="Search option" /><div class="smart-select-actions"><button type="button" class="btn-ghost smart-select-all">Select all</button><button type="button" class="btn-ghost smart-select-clear">Clear</button></div><div class="smart-select-options"></div></div>';
+        select.insertAdjacentElement('afterend', wrapper);
+      }
+      const summaryEl = wrapper.querySelector('.summary');
+      const panel = wrapper.querySelector('.smart-select-panel');
+      const search = wrapper.querySelector('.smart-select-search');
+      const optionsBox = wrapper.querySelector('.smart-select-options');
+      const values = Array.from(select.options).map((option) => option.value).filter((value) => value && value !== 'All');
+      const current = getFilterValues(select).filter((value) => value !== 'All' && values.includes(value));
+      setFilterValues(select, current.length ? current : ['All']);
+      const selectedValues = getFilterValues(select);
+      summaryEl.textContent = selectedValues.includes('All') ? 'All' : `${selectedValues.length} selected`;
+      const displayOption = (value) => select.id === 'flagFilter' ? displayCategory(value) : value;
+      optionsBox.innerHTML = values.map((value) => `<label class="smart-select-option" data-value="${esc(value)}"><input type="checkbox" value="${esc(value)}" ${selectedValues.includes(value) ? 'checked' : ''} /><span>${esc(displayOption(value))}</span></label>`).join('') || '<div class="sub-text">Tidak ada opsi</div>';
+      const applyFilter = () => {
+        const selected = Array.from(optionsBox.querySelectorAll('input:checked')).map((input) => input.value);
+        setFilterValues(select, selected.length ? selected : ['All']);
+        const nextValues = getFilterValues(select);
+        summaryEl.textContent = nextValues.includes('All') ? 'All' : `${nextValues.length} selected`;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      optionsBox.querySelectorAll('input').forEach((input) => input.addEventListener('change', applyFilter));
+      wrapper.querySelector('.smart-select-all').onclick = () => {
+        optionsBox.querySelectorAll('input').forEach((input) => { input.checked = true; });
+        applyFilter();
+      };
+      wrapper.querySelector('.smart-select-clear').onclick = () => {
+        optionsBox.querySelectorAll('input').forEach((input) => { input.checked = false; });
+        applyFilter();
+      };
+      wrapper.querySelector('.smart-select-trigger').onclick = () => {
+        const willOpen = !wrapper.classList.contains('open');
+        closeAllSmartSelects(wrapper);
+        wrapper.classList.toggle('open', willOpen);
+        if (willOpen) search.focus();
+      };
+      search.oninput = () => {
+        const keyword = search.value.trim().toLowerCase();
+        optionsBox.querySelectorAll('.smart-select-option').forEach((option) => {
+          option.style.display = !keyword || option.dataset.value.toLowerCase().includes(keyword) ? '' : 'none';
+        });
+      };
+    }
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.smart-select')) closeAllSmartSelects();
+    });
+    function setOptions(select, values, selectedValue = 'All') {
+      const selectedValues = Array.isArray(selectedValue) ? selectedValue : [selectedValue];
+      select.innerHTML = ['<option value="All">All</option>'].concat(values.map((value) => `<option value="${esc(value)}">${esc(select.id === 'flagFilter' ? displayCategory(value) : value)}</option>`)).join('');
+      setFilterValues(select, selectedValues.filter((value) => value === 'All' || values.includes(value)));
+      renderSmartSelect(select);
+    }
+    function populateFilters() {
+      setOptions(byId('clusterFilter'), getUniqueValues(tableRows, (row) => row.cluster));
+      setOptions(byId('disbursementFilter'), getUniqueValues(tableRows, (row) => row.disbursementStatus));
+      setOptions(byId('settlementFilter'), getUniqueValues(tableRows, (row) => row.settlementStatus));
+      setOptions(byId('flagFilter'), getUniqueValues(tableRows, (row) => row.flag));
+      refreshHubOptions();
+    }
+    function refreshHubOptions() {
+      const clusters = getFilterValues('clusterFilter');
+      const current = getFilterValues('hubFilter');
+      const hubs = getUniqueValues(tableRows.filter((row) => clusters.includes('All') || clusters.includes(row.cluster)), (row) => row.hub);
+      setOptions(byId('hubFilter'), hubs, current);
+    }
+    function rowMatchesDateRange(row, fromDate, toDate) {
+      const dates = [row.startDate, row.endDate].filter(Boolean);
+      if (!fromDate && !toDate) return true;
+      if (!dates.length) return !fromDate && !toDate;
+      return dates.some((date) => (!fromDate || date >= fromDate) && (!toDate || date <= toDate));
+    }
+    function filteredRows() {
+      const cluster = getFilterValues('clusterFilter');
+      const hub = getFilterValues('hubFilter');
+      const fromDate = byId('fromDate').value;
+      const toDate = byId('toDate').value;
+      const disbursement = getFilterValues('disbursementFilter');
+      const settlement = getFilterValues('settlementFilter');
+      const flag = getFilterValues('flagFilter');
+      const search = (byId('searchInput').value || '').trim().toLowerCase();
+      const searchIsNumericId = /^\d+$/.test(search);
+      return tableRows.filter((row) => {
+        const haystack = [row.reportId, row.routeId, row.cluster, row.hub, row.driverName, row.driverId, row.driverTag, row.vehiclePlate, row.routeText, row.reasonHubLead, row.feedbackHL, row.flag].join(' ').toLowerCase();
+        return (cluster.includes('All') || cluster.includes(row.cluster))
+          && (hub.includes('All') || hub.includes(row.hub))
+          && (disbursement.includes('All') || disbursement.includes(row.disbursementStatus))
+          && (settlement.includes('All') || settlement.includes(row.settlementStatus))
+          && (flag.includes('All') || flag.includes(row.flag))
+          && rowMatchesDateRange(row, fromDate, toDate)
+          && (!search || (searchIsNumericId ? String(row.reportId).toLowerCase() === search || String(row.routeId).toLowerCase() === search : haystack.includes(search)));
+      });
+    }
+    function renderSummary(rows) {
+      byId('totalRows').textContent = rows.length.toLocaleString('id-ID');
+      byId('totalExpense').textContent = money(rows.reduce((sum, row) => sum + row.expenseValue, 0));
+      byId('fraudCount').textContent = rows.filter((row) => row.bbmPriority?.primaryCaseCategory?.startsWith('WORKFLOW EXCLUSION')).length.toLocaleString('id-ID');
+      byId('potentialFraudCount').textContent = rows.filter((row) => row.bbmPriority?.primaryCaseCategory?.startsWith('DATA QUALITY')).length.toLocaleString('id-ID');
+      byId('highCount').textContent = rows.filter((row) => row.bbmPriority?.primaryCaseCategory === 'DETAIL NOT VERIFIED' || row.bbmPriority?.primaryCaseCategory === 'DETAIL UNAVAILABLE').length.toLocaleString('id-ID');
+      byId('validCount').textContent = rows.filter((row) => row.bbmPriority?.primaryCaseCategory === 'NO ACTIVE FLAG UNDER CURRENT RULES').length.toLocaleString('id-ID');
+      byId('rowCount').textContent = `Filtered ${rows.length.toLocaleString('id-ID')} rows`;
+      renderBbmPriority(rows);
+      renderTrendMetrics(rows);
+    }
+    function renderBbmPriority(rows) {
+      const tbody = byId('bbmTbody');
+      if (!tbody) return;
+      const categorized = rows.filter((row) => row.bbmPriority && row.bbmPriority.primaryCaseCategory !== 'NO ACTIVE FLAG UNDER CURRENT RULES');
+      byId('bbmUniqueCount').textContent = categorized.length.toLocaleString('id-ID');
+      byId('bbmDataAnomalyCount').textContent = rows.filter((row) => row.bbmPriority?.primaryCaseCategory?.startsWith('DATA QUALITY')).length.toLocaleString('id-ID');
+      byId('bbmHighCount').textContent = rows.filter((row) => row.bbmPriority?.primaryCaseCategory?.startsWith('WORKFLOW EXCLUSION')).length.toLocaleString('id-ID');
+      byId('bbmMediumCount').textContent = rows.filter((row) => row.bbmPriority?.primaryCaseCategory === 'DETAIL NOT VERIFIED' || row.bbmPriority?.primaryCaseCategory === 'DETAIL UNAVAILABLE').length.toLocaleString('id-ID');
+      const displayRows = categorized.slice(0, 300);
+      tbody.innerHTML = displayRows.map((row) => {
+        const audit = row.bbmPriority;
+        const reasons = audit.allMatchedReasons.length ? audit.allMatchedReasons.map(displayReason).join('<br>') : 'Tidak ada temuan aktif berdasarkan aturan saat ini.';
+        const statuses = [
+          ...((audit.verificationStatuses || []).map(displayStatus)),
+          displayEvidenceStatus(audit.evidenceMetadataStatus),
+          displayEvidenceStatus(audit.evidenceAccessStatus),
+          displayEvidenceStatus(audit.visualEvidenceReviewStatus),
+          displayEvidenceStatus(audit.ocrStatus)
+        ].filter(Boolean).join('<br>');
+        const fuelExpense = `BBM: ${money(audit.fuelAmount || 0)}<br>Non-BBM: ${money(audit.nonFuelAmount || 0)}<br>Total: ${money(row.expenseValue || 0)}<br>BBM/KM: Belum aktif`;
+        const km = `KM List: ${Number(row.actualDistance || 0).toLocaleString('id-ID')}<br>KM Detail: ${audit.detailKm == null ? 'belum diverifikasi' : Number(audit.detailKm).toLocaleString('id-ID')}<br>Awal→Akhir: ${audit.preKm ?? '-'} → ${audit.postKm ?? '-'}<br>Hitung: ${audit.calculatedKm == null ? '-' : Number(audit.calculatedKm).toLocaleString('id-ID')}`;
+        const cls = audit.primaryCaseCategory.startsWith('WORKFLOW') ? 'badge-red' : audit.primaryCaseCategory.startsWith('DATA QUALITY') ? 'badge-orange' : audit.primaryCaseCategory.includes('DETAIL') ? 'badge-yellow' : audit.primaryCaseCategory.includes('DUPLICATE') ? 'badge-purple' : 'badge-gray';
+        return `<tr>
+          <td><span class="badge ${cls}">${esc(displayCategory(audit.primaryCaseCategory))}</span></td>
+          <td>${esc(displayEligibility(audit.priorityLevel))}</td>
+          <td>${row.reportId}</td>
+          <td><b>${row.driverName}</b><br>${row.driverTag}<br>${row.vehiclePlate}</td>
+          <td>${row.routeText}<br>${row.startDate} → ${row.endDate}<br>${km}</td>
+          <td>${reasons}</td>
+          <td>${statuses}</td>
+          <td>${fuelExpense}</td>
+          <td>${(audit.actions || []).map(displayAction).join('<br>')}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="9">Tidak ada laporan berkategori pada filter saat ini.</td></tr>';
+    }
+    function showSyncToast(title, message, tone = 'error', autoHide = true) {
+      const toast = byId('syncToast');
+      if (!toast) return;
+      byId('syncToastTitle').textContent = title;
+      byId('syncToastBody').textContent = message;
+      toast.className = `toast open ${tone}`;
+      if (extensionToastTimer) clearTimeout(extensionToastTimer);
+      if (autoHide) {
+        extensionToastTimer = setTimeout(() => toast.classList.remove('open'), 3200);
+      }
+    }
+    function renderTrendMetrics(rows) {
+      const trendRows = rows.map((row) => ({
+        hub: row.hub || '-',
+        date: row.startDate || row.endDate || '-',
+        km: Number(row.kmPostDrive || row.actualDistance || 0),
+        fuel: Number(row.estimatedFuelCost || row.expenseValue || 0)
+      }));
+      const hubMap = new Map();
+      const dateMap = new Map();
+      trendRows.forEach((row) => {
+        const hubBucket = hubMap.get(row.hub) || { hub: row.hub, rows: 0, km: 0, fuel: 0 };
+        hubBucket.rows += 1; hubBucket.km += row.km; hubBucket.fuel += row.fuel; hubMap.set(row.hub, hubBucket);
+        const key = `${row.date}|${row.hub}`;
+        const dateBucket = dateMap.get(key) || { date: row.date, hub: row.hub, rows: 0, km: 0, fuel: 0 };
+        dateBucket.rows += 1; dateBucket.km += row.km; dateBucket.fuel += row.fuel; dateMap.set(key, dateBucket);
+      });
+      const hubTrend = Array.from(hubMap.values()).sort((a, b) => b.fuel - a.fuel || b.km - a.km).slice(0, 8);
+      const history = Array.from(dateMap.values()).sort((a, b) => String(b.date).localeCompare(String(a.date)) || b.fuel - a.fuel).slice(0, 10);
+      const totalKm = trendRows.reduce((sum, row) => sum + row.km, 0);
+      const totalFuel = trendRows.reduce((sum, row) => sum + row.fuel, 0);
+      const topHub = hubTrend[0]?.hub || '-';
+      byId('trendHubName').textContent = topHub;
+      byId('trendDateCount').textContent = new Set(trendRows.map((row) => row.date)).size.toLocaleString('id-ID');
+      byId('trendTotalKm').textContent = totalKm.toLocaleString('id-ID');
+      byId('trendTotalFuel').textContent = money(totalFuel);
+      const maxFuel = Math.max(...history.map((item) => item.fuel), 1);
+      byId('trendTbody').innerHTML = history.length ? history.map((item) => `<tr class="clickable-row" onclick="applyQuickFilter('${esc(item.hub)}','${esc(item.date)}')"><td>${esc(item.date)}</td><td><span class="clickable-chip">${esc(item.hub)}</span></td><td class="num">${item.rows.toLocaleString('id-ID')}</td><td class="num">${item.km.toLocaleString('id-ID')}</td><td class="num">${money(item.fuel)}</td><td><div class="trend-bar"><span style="width:${Math.max(8, Math.round((item.fuel / maxFuel) * 100))}%"></span></div></td></tr>`).join('') : '<tr><td colspan="6" class="sub-text">No trend data</td></tr>';
+      byId('hubTrendTbody').innerHTML = hubTrend.length ? hubTrend.map((item) => `<tr class="clickable-row" onclick="applyQuickFilter('${esc(item.hub)}')"><td><span class="clickable-chip">${esc(item.hub)}</span></td><td class="num">${item.rows.toLocaleString('id-ID')}</td><td class="num">${item.km.toLocaleString('id-ID')}</td><td class="num">${money(item.fuel)}</td></tr>`).join('') : '<tr><td colspan="4" class="sub-text">No hub metrics</td></tr>';
+    }
+    function focusLiveRows() {
+      byId('tbody')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    function applyQuickFilter(hub, date) {
+      if (hub) setFilterValues(byId('hubFilter'), [hub]);
+      if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        byId('fromDate').value = date;
+        byId('toDate').value = date;
+      }
+      renderTable(true);
+      focusLiveRows();
+    }
+
+    function runSyntheticUatFixtures() {
+      return UAT_SYNTHETIC_REPORTS.map((report) => {
+        const row = transformReport(report);
+        row.bbmPriority = evaluateBbmPriority(row);
+        row.flag = flagLabel(row);
+        return {
+          reportId: row.reportId,
+          primaryCaseCategory: row.bbmPriority.primaryCaseCategory,
+          priorityLevel: row.bbmPriority.priorityLevel,
+          verificationStatuses: row.bbmPriority.verificationStatuses,
+          allMatchedReasons: row.bbmPriority.allMatchedReasons,
+          fuelKmScoringStatus: row.bbmPriority.fuelKmScoringStatus,
+          detailKm: row.bbmPriority.detailKm,
+          preKm: row.bbmPriority.preKm,
+          postKm: row.bbmPriority.postKm,
+          calculatedKm: row.bbmPriority.calculatedKm,
+          fuelAmount: row.bbmPriority.fuelAmount,
+          nonFuelAmount: row.bbmPriority.nonFuelAmount,
+          expenseItemSum: row.bbmPriority.expenseItemSum
+        };
+      });
+    }
+
+    function normalizeForConflict(value) {
+      return JSON.stringify(value, Object.keys(value || {}).sort());
+    }
+    function isProtectedConflictId(reportId) {
+      return new Set(['10099', '11924', '5983', '6376', '6377', '6381', '6382']).has(String(reportId || ''));
+    }
+    function applyReports(reports, options = {}) {
+      if (!Array.isArray(reports)) throw new Error('Reports payload must be an array');
+      const { preservePage = false, status = 'SUCCESS', syncedAt = null } = options;
+      const mergeStats = { added: 0, updated: 0, unchanged: 0, conflicts: 0, protectedConflicts: 0 };
+      const currentById = new Map((Array.isArray(RAW_REPORTS) ? RAW_REPORTS : []).map((item) => [String(item.id || ''), item]));
+      const conflictRows = [];
+      reports.forEach((item) => {
+        if (!item || item.id == null) return;
+        const key = String(item.id);
+        const existing = currentById.get(key);
+        if (!existing) {
+          currentById.set(key, item);
+          mergeStats.added += 1;
+          return;
+        }
+        const protectedId = isProtectedConflictId(key);
+        const comparableExisting = normalizeForConflict(existing);
+        const comparableIncoming = normalizeForConflict(item);
+        if (comparableExisting === comparableIncoming) {
+          mergeStats.unchanged += 1;
+          return;
+        }
+        if (protectedId) {
+          conflictRows.push({ reportId: key, existing, incoming: item, protected: true, reason: 'PROTECTED QUARANTINED CONFLICT — NOT OVERWRITTEN' });
+          mergeStats.protectedConflicts += 1;
+          mergeStats.conflicts += 1;
+          return;
+        }
+        const merged = { ...existing };
+        Object.keys(item).forEach((field) => {
+          const value = item[field];
+          const isEmpty = value == null || value === '' || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0);
+          if (!isEmpty) merged[field] = value;
+        });
+        currentById.set(key, merged);
+        mergeStats.updated += 1;
+      });
+      window.TOKGISTIC_CONFLICT_QUARANTINE = (window.TOKGISTIC_CONFLICT_QUARANTINE || []).concat(conflictRows);
+      RAW_REPORTS = currentById.size ? Array.from(currentById.values()) : reports;
+      tableRows = RAW_REPORTS.map(transformReport);
+      tableRows.forEach((row, idx) => { row._idx = idx; });
+      highExpenseThreshold = computeHighThreshold(tableRows);
+      calculateBbmThresholds(tableRows);
+      const evidenceCounts = new Map();
+      tableRows.forEach((row) => row.evidenceUrls.forEach((url) => evidenceCounts.set(url, (evidenceCounts.get(url) || 0) + 1)));
+      tableRows.forEach((row) => {
+        row.bbmPriority = evaluateBbmPriority(row);
+        row.kmContinuity = computeKmContinuity(row, row.bbmPriority);
+        row.fuelRatio = computeFuelRatio(row, row.bbmPriority);
+        row.duplicateEvidenceStatus = row.evidenceUrls.some((url) => evidenceCounts.get(url) > 1) ? 'DUPLICATE URL METADATA — REVIEW REQUIRED' : row.duplicateEvidenceStatus;
+        row.flag = flagLabel(row);
+      });
+      loadSaved();
+      populateFilters();
+      renderTable(!preservePage);
+      lastRefreshAt = syncedAt || nowStamp();
+      updateSyncMeta({ status, syncedAt: lastRefreshAt, liveRows: reports.length });
+      return mergeStats;
+    }
+    function nowStamp() {
+      return new Date().toLocaleString('en-GB', { hour12: false });
+    }
+    function updateSyncBadge(status) {
+      const badge = byId('syncBadge');
+      if (!badge) return;
+      const text = String(status || 'IDLE').toUpperCase();
+      badge.textContent = text;
+      if (text === 'SUCCESS') {
+        badge.style.background = '#dcfce7';
+        badge.style.color = '#166534';
+      } else if (text === 'FAILED') {
+        badge.style.background = '#fee2e2';
+        badge.style.color = '#991b1b';
+      } else if (text === 'SYNCING') {
+        badge.style.background = '#dbeafe';
+        badge.style.color = '#1d4ed8';
+      } else if (text === 'IDLE') {
+        badge.style.background = '#e2e8f0';
+        badge.style.color = '#475569';
+      } else {
+        badge.style.background = '#e2e8f0';
+        badge.style.color = '#475569';
+      }
+    }
+    function updateExtensionIndicator(connected, message = '') {
+      const el = byId('extensionIndicator');
+      const textEl = byId('extensionIndicatorText');
+      if (!el || !textEl) return;
+      el.classList.toggle('connected', Boolean(connected));
+      el.classList.toggle('disconnected', !connected);
+      textEl.textContent = connected ? (message || 'Extension connected') : (message || 'Extension disconnected');
+      const sidebarSync = byId('sidebarSyncText');
+      if (sidebarSync && !connected) sidebarSync.textContent = 'DISCONNECTED';
+    }
+    function updateSyncMeta(options = {}) {
+      const { status, syncedAt, liveRows } = options;
+      if (status) updateSyncBadge(status);
+      if (status && byId('sidebarSyncText')) byId('sidebarSyncText').textContent = String(status).toUpperCase();
+      if (syncedAt !== undefined) {
+        const el = byId('lastSyncedAt');
+        if (el) el.textContent = `Last synced at: ${syncedAt || '-'}`;
+      }
+      if (liveRows !== undefined) {
+        const el = byId('liveRowCount');
+        if (el) el.textContent = `Live rows: ${liveRows == null ? '-' : Number(liveRows).toLocaleString('id-ID')}`;
+        const sidebar = byId('sidebarLiveRows');
+        if (sidebar) sidebar.textContent = liveRows == null ? '-' : Number(liveRows).toLocaleString('id-ID');
+      }
+    }
+    function switchPanel(panelId) {
+      document.querySelectorAll('.content-panel').forEach((panel) => panel.classList.toggle('active', panel.id === panelId));
+      document.querySelectorAll('.nav-btn').forEach((button) => button.classList.toggle('active', button.dataset.panelTarget === panelId));
+    }
+    function updateRefreshStatus(message, isError = false) {
+      const el = byId('refreshStatus');
+      if (!el) return;
+      el.textContent = message;
+      el.style.color = isError ? '#b91c1c' : '#64748b';
+      updateSyncBadge(isError ? 'FAILED' : (String(message || '').toLowerCase().includes('sync') || String(message || '').toLowerCase().includes('refresh') ? 'SUCCESS' : 'IDLE'));
+    }
+    function scheduleAutoRefresh() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+      const enabled = byId('autoRefreshToggle')?.checked;
+      const interval = Number(byId('refreshInterval')?.value || 60000);
+      if (!enabled) {
+        updateRefreshStatus(lastRefreshAt ? `Auto refresh paused • last refresh ${lastRefreshAt}` : 'Auto refresh paused');
+        return;
+      }
+      refreshTimer = window.setInterval(() => reloadDashboardData({ silent: true }), interval);
+      updateRefreshStatus(lastRefreshAt ? `Auto refresh every ${Math.round(interval / 1000)}s • last refresh ${lastRefreshAt}` : `Auto refresh every ${Math.round(interval / 1000)}s`);
+    }
+    async function reloadDashboardData(options = {}) {
+      if (refreshInFlight) return;
+      const { silent = false } = options;
+      refreshInFlight = true;
+      const refreshButton = byId('refreshBtn');
+      const previousText = refreshButton ? refreshButton.textContent : 'Refresh Data';
+      if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.textContent = 'Refreshing...';
+      }
+      if (!silent) {
+        updateSyncMeta({ status: 'SYNCING' });
+        updateRefreshStatus('Refreshing data...');
+        if (!extensionConnected) showSyncToast('Extension needed', 'Please enable the Tokgistic Dashboard Live Sync extension, then use Sync Extension or Sync now.', 'error', true);
+        if (!extensionConnected) updateExtensionIndicator(false, 'Extension disconnected');
+      }
+      try {
+        const reports = await loadAuditData();
+        applyReports(reports, { preservePage: true, status: 'SUCCESS' });
+        scheduleAutoRefresh();
+        updateRefreshStatus(`Refresh success • ${lastRefreshAt}`);
+      } catch (error) {
+        console.error(error);
+        updateRefreshStatus(`Refresh failed • ${error.message || error}`, true);
+      } finally {
+        refreshInFlight = false;
+        if (refreshButton) {
+          refreshButton.disabled = false;
+          refreshButton.textContent = previousText;
+        }
+      }
+    }
+    function resetAllFilters() {
+      setFilterValues(byId('clusterFilter'), ['All']);
+      setFilterValues(byId('hubFilter'), ['All']);
+      setFilterValues(byId('disbursementFilter'), ['All']);
+      setFilterValues(byId('settlementFilter'), ['All']);
+      setFilterValues(byId('flagFilter'), ['All']);
+      byId('fromDate').value = '';
+      byId('toDate').value = '';
+      byId('searchInput').value = '';
+      renderTable(true);
+      updateRefreshStatus('Filters reset to default');
+    }
+    function bindControlsOnce() {
+      if (controlsBound) return;
+      controlsBound = true;
+      byId('clusterFilter').addEventListener('change', () => { setFilterValues(byId('hubFilter'), ['All']); renderTable(true); });
+      byId('hubFilter').addEventListener('change', renderTable);
+      byId('disbursementFilter').addEventListener('change', renderTable);
+      byId('settlementFilter').addEventListener('change', renderTable);
+      byId('flagFilter').addEventListener('change', renderTable);
+      byId('fromDate').addEventListener('change', renderTable);
+      byId('toDate').addEventListener('change', renderTable);
+      byId('searchInput').addEventListener('input', renderTable);
+      byId('sortBtn').addEventListener('click', () => {
+        sortDesc = !sortDesc;
+        byId('sortBtn').textContent = sortDesc ? 'Urutkan Biaya ↓' : 'Urutkan Biaya ↑';
+        renderTable(true);
+      });
+      byId('prevPageBtn').addEventListener('click', () => { if (currentPage > 1) { currentPage -= 1; renderTable(false); } });
+      byId('nextPageBtn').addEventListener('click', () => { currentPage += 1; renderTable(false); });
+      byId('pageSizeSelect').addEventListener('change', () => renderTable(true));
+      byId('exportBtn').addEventListener('click', exportExcel);
+      byId('refreshBtn').addEventListener('click', () => reloadDashboardData({ silent: false }));
+      byId('resetFilterBtn').addEventListener('click', resetAllFilters);
+      byId('refreshInterval').addEventListener('change', scheduleAutoRefresh);
+      byId('autoRefreshToggle').addEventListener('change', scheduleAutoRefresh);
+      ['detailModal', 'imageModal', 'editorModal'].forEach((id) => {
+        byId(id).addEventListener('click', (event) => { if (event.target.id === id) closeModal(id); });
+      });
+    }
+    function openModal(id) { byId(id).classList.add('open'); }
+    function closeModal(id) { byId(id).classList.remove('open'); }
+    function photoBox(title, photo) {
+      const url = photo && photo.url ? String(photo.url).replaceAll('\\u0026', '&') : '';
+      if (!url) return `<div class="evidence-photo"><div class="label">${esc(title)}</div><div class="sub-text">No photo available</div></div>`;
+      return `<div class="evidence-photo"><div class="label">${esc(title)}</div><a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="${esc(title)}" onerror="this.style.display='none'; this.parentElement.insertAdjacentHTML('afterend','<div class=&quot;evidence-error&quot;>Photo link expired or unavailable</div>');"></a><div class="evidence-ok">Temporary signed URL</div></div>`;
+    }
+    function renderStartFuelFallback(row, reason = '') {
+      const url = row.evidenceFull?.[0] || row.evidenceUrls?.[0] || '';
+      if (!url) return `<div class="detail-section"><h4>Start Fuel Photo — list payload</h4><div class="sub-text">No start_fuel_image available in list payload.</div></div>`;
+      return `<div class="detail-section"><h4>Start Fuel Photo — list payload</h4><div class="sub-text">${esc(reason || 'Fallback from existing list payload. This is not receipt, dispenser, odometer, or post-drive evidence.')}</div><div class="evidence-photos">${photoBox('Start Fuel Photo — list payload', { url })}</div></div>`;
+    }
+    function renderEvidenceDetail(detail) {
+      const fuel = detail.fuel_capacity || {};
+      const expenses = Array.isArray(detail.expenses) ? detail.expenses : [];
+      const expenseHtml = expenses.length ? expenses.map((expense) => `
+        <div class="evidence-expense">
+          <strong>Expense ID ${esc(expense.expense_id || '-')}</strong>
+          <div class="sub-text">Type: ${esc(expense.expense_type ?? '-')} • Amount: ${money(expense.amount || 0)} • Volume: ${esc(expense.refuel_volume_liter ?? '-')} L • Odometer: ${esc(expense.odometer_when_refuel_km ?? '-')} KM</div>
+          <div class="evidence-photos">
+            ${photoBox('Receipt photo', expense.receipt_photo)}
+            ${photoBox('Volume / dispenser photo', expense.refuel_volume_photo)}
+            ${photoBox('Odometer photo', expense.odometer_photo)}
+          </div>
+        </div>`).join('') : '<div class="sub-text">No expense detail returned.</div>';
+      return `
+        <div class="detail-section"><h4>On-demand Evidence Detail</h4>
+          <div class="sub-text">Report ID validated: ${esc(detail.report_id || '-')} • Signed URLs are runtime-only and are not saved to the payload.</div>
+          <div class="evidence-photos">
+            ${photoBox('Pre-drive fuel capacity', fuel.pre && fuel.pre.photo)}
+            ${photoBox('Post-drive fuel capacity', fuel.post && fuel.post.photo)}
+          </div>
+          ${expenseHtml}
+        </div>`;
+    }
+    function fetchEvidenceDetail(reportId) {
+      return new Promise((resolve) => {
+        const requestId = `detail-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const cleanup = () => window.removeEventListener('TOKGISTIC_REPORT_DETAIL_RESPONSE', onDetailResponse);
+        const timeout = window.setTimeout(() => {
+          cleanup();
+          resolve({ ok: false, error: 'Tokgistic detail bridge timeout; showing list-payload photo only.' });
+        }, 12000);
+        function onDetailResponse(event) {
+          const detail = event.detail || {};
+          if (detail.requestId !== requestId) return;
+          window.clearTimeout(timeout);
+          cleanup();
+          resolve(detail.response || { ok: false, error: 'Empty extension response' });
+        }
+        window.addEventListener('TOKGISTIC_REPORT_DETAIL_RESPONSE', onDetailResponse);
+        window.dispatchEvent(new CustomEvent('TOKGISTIC_REPORT_DETAIL_REQUEST', { detail: { requestId, reportId: String(reportId || '') } }));
+        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage(TOKGISTIC_EXTENSION_ID, { type: 'FETCH_REPORT_DETAIL', reportId: String(reportId || '') }, (response) => {
+            const lastError = chrome.runtime.lastError;
+            if (!lastError && response) {
+              window.clearTimeout(timeout);
+              cleanup();
+              resolve(response);
+            }
+          });
+        }
+      });
+    }
+    async function loadEvidenceDetail(row) {
+      const target = byId('onDemandEvidenceBody');
+      if (!target) return;
+      target.innerHTML = '<div class="sub-text">Loading on-demand evidence from authenticated Tokgistic source tab...</div>';
+      const result = await fetchEvidenceDetail(row.reportId);
+      if (!result.ok) {
+        target.innerHTML = renderStartFuelFallback(row, `On-demand detail unavailable: ${result.error || 'Unable to load evidence detail'}. Showing existing list-payload start fuel photo only.`);
+        return;
+      }
+      const detail = result.detail || {};
+      if (String(detail.report_id || '') !== String(row.reportId)) {
+        target.innerHTML = renderStartFuelFallback(row, 'On-demand detail report mismatch. Showing existing list-payload start fuel photo only.');
+        return;
+      }
+      target.innerHTML = renderEvidenceDetail(detail);
+    }
+    function openDetail(index) {
+      const row = tableRows[index];
+      const audit = row.bbmPriority || evaluateBbmPriority(row);
+      byId('detailTitle').textContent = `Detail Audit — ${row.driverName}`;
+      byId('detailBody').innerHTML = `
+        <div class="detail-grid">
+          <div class="detail-card"><div class="label">Report ID</div><div class="value">${esc(row.reportId)}</div></div>
+          <div class="detail-card"><div class="label">Route ID</div><div class="value">${esc(row.routeId)}</div></div>
+          <div class="detail-card"><div class="label">Kategori Utama Kasus</div><div class="value">${esc(displayCategory(audit.primaryCaseCategory))}</div></div>
+          <div class="detail-card"><div class="label">Eligibility Status</div><div class="value">${esc(displayEligibility(audit.priorityLevel))}</div></div>
+          <div class="detail-card"><div class="label">Status Verifikasi</div><div class="value">${esc((audit.verificationStatuses || []).map(displayStatus).join(' | '))}</div></div>
+          <div class="detail-card"><div class="label">KM List</div><div class="value">${Number(row.actualDistance || 0).toLocaleString('id-ID')}</div></div>
+          <div class="detail-card"><div class="label">KM Detail</div><div class="value">${audit.detailKm == null ? 'Detail Belum Diverifikasi' : Number(audit.detailKm).toLocaleString('id-ID')}</div></div>
+          <div class="detail-card"><div class="label">KM Awal → Akhir</div><div class="value">${audit.preKm ?? '-'} → ${audit.postKm ?? '-'}</div></div>
+          <div class="detail-card"><div class="label">KM Terhitung</div><div class="value">${audit.calculatedKm == null ? '-' : Number(audit.calculatedKm).toLocaleString('id-ID')}</div></div>
+          <div class="detail-card"><div class="label">Nominal BBM</div><div class="value">${money(audit.fuelAmount || 0)}</div></div>
+          <div class="detail-card"><div class="label">Nominal Non-BBM</div><div class="value">${money(audit.nonFuelAmount || 0)}</div></div>
+          <div class="detail-card"><div class="label">Metadata Bukti</div><div class="value">${esc(displayEvidenceStatus(audit.evidenceMetadataStatus))}</div></div>
+          <div class="detail-card"><div class="label">Status Akses Bukti</div><div class="value">${esc(displayEvidenceStatus(audit.evidenceAccessStatus))}</div></div>
+          <div class="detail-card"><div class="label">Tinjauan Visual / OCR</div><div class="value">${esc(displayEvidenceStatus(audit.visualEvidenceReviewStatus))} / ${esc(displayEvidenceStatus(audit.ocrStatus))}</div></div>
+          <div class="detail-card"><div class="label">Penilaian BBM per KM</div><div class="value">Belum aktif</div></div>
+        </div>
+        <div class="detail-section"><h4>Status Audit Terpisah</h4><p>${esc(row.auditStatus)} | ${esc(row.settlementAudit?.status || '')} | ${esc(row.kmContinuity?.status || '')} | ${esc(row.fuelRatio?.status || '')}</p></div>
+        <div class="detail-section"><h4>Outstanding / Carry-forward / Settlement</h4><p>${esc((row.settlementAudit?.reasons || []).join(' | ') || 'Tidak ada carry-forward / settlement gap terdeteksi pada list payload.')}</p></div>
+        <div class="detail-section"><h4>Kontinuitas KM & Rasio BBM</h4><p>${esc([...(row.kmContinuity?.reasons || []), `Liter/KM: ${row.fuelRatio?.literPerKm == null ? 'Unavailable' : row.fuelRatio.literPerKm.toFixed(4)}`].join(' | '))}</p></div>
+        <div class="detail-section"><h4>Semua Alasan yang Ditemukan</h4><p>${esc((audit.allMatchedReasons || []).map(displayReason).join(' | ') || 'Tidak ada temuan aktif berdasarkan aturan saat ini.')}</p></div>
+        <div class="detail-section"><h4>Langkah Berikutnya</h4><p>${esc((audit.actions || []).map(displayAction).join(' | '))}</p></div>`;
+      openModal('detailModal');
+    }
+    function openImage(index) {
+      const row = tableRows[index];
+      byId('imageTitle').textContent = `Bukti Detail — ${row.driverName}`;
+      byId('imageBody').innerHTML = `<div id="onDemandEvidenceBody"><div class="sub-text" style="margin-top:10px;">Loading on-demand evidence...</div></div>`;
+      openModal('imageModal');
+      loadEvidenceDetail(row);
+    }
+    function openEditor(index, field) {
+      const row = tableRows[index];
+      activeEditor = { index, field };
+      byId('editorTitle').textContent = field === 'reasonHubLead' ? `Edit Alasan HL — ${row.driverName}` : `Edit Feedback HL — ${row.driverName}`;
+      byId('editorTextarea').value = row[field] || '';
+      openModal('editorModal');
+    }
+    function saveEditorValue() {
+      if (!activeEditor) return;
+      const row = tableRows[activeEditor.index];
+      row[activeEditor.field] = byId('editorTextarea').value;
+      saveRow(row);
+      closeModal('editorModal');
+      renderTable(true);
+    }
+    function updateAction(index, value) {
+      const row = tableRows[index];
+      row.action = isLocked(row) ? 'ALREADY DISBURSED' : value;
+      saveRow(row);
+      renderTable(true);
+    }
+    function compactNote(text) {
+      const value = String(text || '').trim();
+      if (!value) return '<span class="sub-text">Belum diisi</span>';
+      return `<div class="sub-text">${esc(value.length > 60 ? value.slice(0, 60) + '…' : value)}</div>`;
+    }
+    function rowHtml(row, index, number) {
+      return `<tr class="clickable-row" onclick="openDetail(${index})">
+        <td class="center">${number}</td>
+        <td><span class="clickable-chip" onclick="event.stopPropagation(); setFilterValues(byId('clusterFilter'), ['${esc(row.cluster)}']); renderTable(true);">${esc(row.cluster)}</span></td>
+        <td><div class="main-text"><span class="clickable-chip" onclick="event.stopPropagation(); applyQuickFilter('${esc(row.hub)}');">${esc(row.hub)}</span></div></td>
+        <td>
+          <div class="main-text">${esc(row.driverName)}</div>
+          <div class="sub-text">${esc(row.driverId)} · ${esc(row.driverTag)}</div>
+        </td>
+        <td>
+          <div class="main-text">${esc(row.routeText)}</div>
+          <div class="sub-text">${esc(row.vehiclePlate)} · ${esc(row.unitType)}</div>
+        </td>
+        <td><span class="clickable-chip" onclick="event.stopPropagation(); applyQuickFilter('${esc(row.hub)}','${esc(row.startDate)}');">${esc(row.startDate || '-')}</span></td>
+        <td>${esc(row.endDate || '-')}</td>
+        <td class="num">${esc(row.cashDisbursementText)}</td>
+        <td class="num"><span class="main-text">${esc(row.expenseText)}</span></td>
+        <td class="num">${row.estimatedFuelCost > 0 ? money(row.expenseVsEstimate) : '-'}</td>
+        <td>
+          <span class="${badgeClass(row.flag)}">${esc(displayCategory(row.flag))}</span>
+          <div class="sub-text" style="margin-top:6px;">${esc(row.aiDetection.label)}</div>
+          <div class="sub-text" style="margin-top:4px; color:#64748b; max-width:220px; line-height:1.35;">${esc(displayReason(flagReason(row)))}</div>
+        </td>
+        <td>
+          ${row.evidenceUrls.length ? `<button class="btn-ghost" onclick="event.stopPropagation(); openImage(${index})">Metadata Bukti</button><div class="sub-text">Akses gambar belum diverifikasi</div>` : '<span class="sub-text">Tidak ada bukti</span>'}
+        </td>
+        <td>
+          <button class="btn-ghost" onclick="event.stopPropagation(); openDetail(${index})">Lihat Detail</button>
+        </td>
+        <td>
+          <div class="stack">
+            <select class="action-select" onclick="event.stopPropagation()" onchange="event.stopPropagation(); updateAction(${index}, this.value)" ${isLocked(row) ? 'disabled' : ''}>
+              <option value="PENDING" ${row.action === 'PENDING' ? 'selected' : ''}>PENDING REVIEW</option>
+              <option value="NO ACTIVE FLAG UNDER CURRENT RULES" ${row.action === 'NO ACTIVE FLAG UNDER CURRENT RULES' ? 'selected' : ''}>NO ACTIVE FLAG</option>
+              <option value="NEEDS MANUAL REVIEW" ${row.action === 'NEEDS MANUAL REVIEW' ? 'selected' : ''}>NEEDS MANUAL REVIEW</option>
+              <option value="WORKFLOW EXCLUSION" ${row.action === 'WORKFLOW EXCLUSION' ? 'selected' : ''}>WORKFLOW EXCLUSION</option>
+              <option value="ALREADY DISBURSED" ${(isLocked(row) || row.action === 'ALREADY DISBURSED') ? 'selected' : ''}>ALREADY DISBURSED</option>
+            </select>
+          </div>
+        </td>
+        <td>
+          <button class="icon-btn" onclick="event.stopPropagation(); openEditor(${index}, 'reasonHubLead')" title="Edit Reason HL"><span class="icon">✏️</span></button>
+          ${compactNote(row.reasonHubLead)}
+        </td>
+        <td>
+          <button class="icon-btn" onclick="event.stopPropagation(); openEditor(${index}, 'feedbackHL')" title="Edit Feedback HL"><span class="icon">✏️</span></button>
+          ${compactNote(row.feedbackHL)}
+        </td>
+      </tr>`;
+    }
+    function renderTable(resetPage = false) {
+      refreshHubOptions();
+      if (resetPage) currentPage = 1;
+      const rows = filteredRows().slice().sort((a, b) => sortDesc ? (b.expenseValue - a.expenseValue) : (a.expenseValue - b.expenseValue));
+      currentFilteredRows = rows;
+      const pageSize = Number(byId('pageSizeSelect')?.value || 100);
+      const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * pageSize;
+      const pageRows = rows.slice(start, start + pageSize);
+      byId('tbody').innerHTML = pageRows.map((row, idx) => rowHtml(row, row._idx, start + idx + 1)).join('');
+      byId('pageInfo').textContent = `Page ${currentPage.toLocaleString('id-ID')} / ${totalPages.toLocaleString('id-ID')} • showing ${pageRows.length.toLocaleString('id-ID')} of ${rows.length.toLocaleString('id-ID')}`;
+      byId('prevPageBtn').disabled = currentPage <= 1;
+      byId('nextPageBtn').disabled = currentPage >= totalPages;
+      renderSummary(rows);
+    }
+    function exportExcel() {
+      const rows = filteredRows().slice().sort((a, b) => sortDesc ? (b.expenseValue - a.expenseValue) : (a.expenseValue - b.expenseValue));
+      const exported = rows.map((row) => ({
+        'Report ID': row.reportId,
+        'Route ID': row.routeId,
+        'Cluster': row.cluster,
+        'Hub': row.hub,
+        'Driver Name': row.driverName,
+        'Driver ID': row.driverId,
+        'Driver Tag': row.driverTag,
+        'Route': row.routeText,
+        'Vehicle Plate': row.vehiclePlate,
+        'Unit Type': row.unitType,
+        'Fuel Type': row.fuelType,
+        'Start Date': row.startDate,
+        'End Date': row.endDate,
+        'Cash Disburse': row.cashDisbursementValue,
+        'Expense': row.expenseValue,
+        'Estimated Fuel Cost': row.estimatedFuelCost,
+        'Expense vs Estimate': row.expenseVsEstimate,
+        'KM Pre Drive': row.kmPreDrive,
+        'KM Post Drive': row.kmPostDrive,
+        'Distance Gap': row.distanceGap,
+        'Fuel / Tank': row.fuelTank,
+        'Disbursement Status': row.disbursementStatus,
+        'Settlement Status': row.settlementStatus,
+        'Tokgistic Status': row.tokgisticStatus,
+        'Auto AI Detection': row.aiDetection.label,
+        'AI Detection Reason': row.aiDetection.reason,
+        'Kategori Utama Kasus': displayCategory(row.bbmPriority?.primaryCaseCategory || ''),
+        'Eligibility Status': displayEligibility(row.bbmPriority?.priorityLevel || ''),
+        'Semua Alasan yang Ditemukan': row.bbmPriority?.allMatchedReasons?.map(displayReason).join(' | ') || '',
+        'Status Verifikasi': row.bbmPriority?.verificationStatuses?.map(displayStatus).join(' | ') || '',
+        'Status Metadata Bukti': displayEvidenceStatus(row.bbmPriority?.evidenceMetadataStatus || ''),
+        'Status Akses Bukti': displayEvidenceStatus(row.bbmPriority?.evidenceAccessStatus || ''),
+        'Status Tinjauan Visual Bukti': displayEvidenceStatus(row.bbmPriority?.visualEvidenceReviewStatus || ''),
+        'Status OCR': displayEvidenceStatus(row.bbmPriority?.ocrStatus || ''),
+        'Status Penilaian BBM per KM': displayFuelKmStatus(row.bbmPriority?.fuelKmScoringStatus || FUEL_KM_SCORING_STATUS),
+        'List KM': row.actualDistance,
+        'Detail KM': row.bbmPriority?.detailKm ?? '',
+        'Pre Drive KM': row.bbmPriority?.preKm ?? '',
+        'Post Drive KM': row.bbmPriority?.postKm ?? '',
+        'Calculated KM': row.bbmPriority?.calculatedKm ?? '',
+        'Fuel Amount': row.bbmPriority?.fuelAmount || 0,
+        'Non-Fuel Amount': row.bbmPriority?.nonFuelAmount || 0,
+        'Expense Item Sum': row.bbmPriority?.expenseItemSum ?? '',
+        'URL Bukti': row.evidenceUrls.length ? 'Metadata Tersedia — Akses Belum Diverifikasi' : 'Metadata Tidak Diketahui',
+        'Audit Status': row.auditStatus || '',
+        'Evidence Verification Status': row.evidenceVerificationStatus || '',
+        'Duplicate Evidence Status': row.duplicateEvidenceStatus || '',
+        'Settlement Audit Status': row.settlementAudit?.status || '',
+        'Carry Forward In': row.settlementAudit?.previousOutstanding || 0,
+        'Outstanding Before Disbursement': row.settlementAudit?.postBeforeDisbursement || 0,
+        'Carry Forward Out': row.settlementAudit?.postAfterDisbursement || 0,
+        'Outstanding Settlement Amount': row.settlementAudit?.outstandingSettlement || 0,
+        'Settlement Audit Reasons': row.settlementAudit?.reasons?.join(' | ') || '',
+        'KM Continuity Status': row.kmContinuity?.status || '',
+        'KM Continuity Reasons': row.kmContinuity?.reasons?.join(' | ') || '',
+        'Vehicle Fuel Ratio Status': row.fuelRatio?.status || '',
+        'Actual Fuel Liter': row.fuelRatio?.fuelLiter || '',
+        'Liter per KM': row.fuelRatio?.literPerKm ?? '',
+        'Alasan HL': row.reasonHubLead || '',
+        'Feedback HL': row.feedbackHL || ''
+      }));
+      const sheet = XLSX.utils.json_to_sheet(exported);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, sheet, 'Operational Audit');
+      XLSX.writeFile(workbook, 'Tokgistic_Operational_Audit_Management_Clean.xlsx');
+    }
+    function setupLiveSyncBridge() {
+      window.addEventListener(LIVE_SYNC_EVENT, (event) => {
+        try {
+          extensionConnected = true;
+          updateExtensionIndicator(true, 'Main extension connected');
+          const detail = event.detail || {};
+          const reports = Array.isArray(detail) ? detail : detail.reports;
+          if (!Array.isArray(reports) || !reports.length) {
+            updateSyncMeta({ status: 'FAILED', liveRows: 0 });
+            updateRefreshStatus('Live feed returned 0 rows • historical dashboard data preserved', true);
+            return;
+          }
+          const startedAt = performance.now();
+          const stamp = detail.fetchedAt || detail.completedAt || nowStamp();
+          const mergeResult = applyReports(reports, {
+            preservePage: true,
+            status: 'SUCCESS',
+            syncedAt: stamp,
+            sourceMeta: detail.meta || detail
+          });
+          const elapsed = Math.round(performance.now() - startedAt);
+          updateRefreshStatus(`Live batch loaded • ${reports.length.toLocaleString('id-ID')} rows received • ${mergeResult.added} added • ${mergeResult.updated} updated • ${mergeResult.conflicts} conflicts quarantined • merge ${elapsed}ms`);
+          updateSyncMeta({ status: 'SUCCESS', syncedAt: stamp, liveRows: reports.length });
+          rctPersistReports(reports, detail, 'extension-live-sync');
+        } catch (error) {
+          console.error('Failed to apply live feed', error);
+          updateRefreshStatus(`Live feed error • ${error.message || error}`, true);
+        }
+      });
+      window.addEventListener(LIVE_STATUS_EVENT, (event) => {
+        const detail = event.detail || {};
+        extensionConnected = Boolean(detail.connected || detail.status || detail.message);
+        updateExtensionIndicator(extensionConnected, detail.isError ? 'Main extension connected • API issue' : 'Main extension connected');
+        if (detail.fetchedAt || detail.liveRows !== undefined || detail.loadedRows !== undefined) {
+          updateSyncMeta({
+            status: detail.isError ? 'FAILED' : (String(detail.status || detail.message || '').toLowerCase().includes('fetching') ? 'SYNCING' : 'SUCCESS'),
+            syncedAt: detail.fetchedAt || detail.completedAt,
+            liveRows: detail.liveRows ?? detail.loadedRows
+          });
+        }
+        if (detail.message) updateRefreshStatus(detail.message, Boolean(detail.isError));
+      });
+    }
+    const RCT_API_BASE = (window.RCT_GITHUB_PAGES_CONFIG && window.RCT_GITHUB_PAGES_CONFIG.apiBase) || '';
+    async function rctLoadSavedReports() {
+      if (!RCT_API_BASE) {
+        updateRefreshStatus('Static GitHub Pages mode • backend API not configured');
+        updateSyncMeta({ status: 'STATIC', liveRows: RAW_REPORTS.length });
+        return;
+      }
+      try {
+        const response = await fetch(`${RCT_API_BASE}/api/v1/reports`, { headers: { 'accept': 'application/json' } });
+        if (!response.ok) throw new Error(`database read ${response.status}`);
+        const data = await response.json();
+        const reports = Array.isArray(data.reports) ? data.reports : [];
+        if (reports.length) {
+          applyReports(reports, { preservePage: true, status: 'SUCCESS', syncedAt: data.summary?.last_sync_at || nowStamp(), sourceMeta: data.summary || {} });
+          updateRefreshStatus(`Loaded saved database rows • ${reports.length.toLocaleString('id-ID')} rows`);
+          updateSyncMeta({ status: 'SUCCESS', syncedAt: data.summary?.last_sync_at || nowStamp(), liveRows: reports.length });
+        } else {
+          updateRefreshStatus('Persistent database connected • no saved rows yet');
+        }
+      } catch (error) {
+        updateRefreshStatus(`Database unavailable • ${error.message || error} • current dashboard data preserved`, true);
+      }
+    }
+    async function rctPersistReports(reports, sourceMeta, source) {
+      if (!RCT_API_BASE) {
+        updateRefreshStatus('Static GitHub Pages mode • backend API not configured • persistence skipped');
+        return;
+      }
+      try {
+        const response = await fetch(`${RCT_API_BASE}/api/v1/reports/upsert`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+          body: JSON.stringify({ source: source || 'extension-live-sync', reports, source_meta: sourceMeta || {} })
+        });
+        if (!response.ok) throw new Error(`database write ${response.status}`);
+        const result = await response.json();
+        updateRefreshStatus(`Persisted to database • added ${result.added} • updated ${result.updated} • duplicate ${result.duplicate} • failed ${result.failed}`);
+      } catch (error) {
+        updateRefreshStatus(`Persistence failed • ${error.message || error} • previous database rows preserved`, true);
+      }
+    }
+    function setupParentPersistenceBridge() {
+      window.addEventListener('message', (event) => {
+        if (event.origin !== window.location.origin) return;
+        const message = event.data || {};
+        if (message.type === 'RCT_SAVED_REPORTS') {
+          const reports = Array.isArray(message.reports) ? message.reports : [];
+          if (!reports.length) {
+            updateSyncMeta({ status: 'EMPTY', liveRows: 0 });
+            updateRefreshStatus('Persistent database connected • no saved rows yet');
+            return;
+          }
+          applyReports(reports, {
+            preservePage: true,
+            status: 'SUCCESS',
+            syncedAt: message.syncedAt || nowStamp(),
+            sourceMeta: message.meta || {}
+          });
+          updateRefreshStatus(`Loaded saved database rows • ${reports.length.toLocaleString('id-ID')} rows`);
+          updateSyncMeta({ status: 'SUCCESS', syncedAt: message.syncedAt || nowStamp(), liveRows: reports.length });
+        }
+        if (message.type === 'RCT_PERSIST_STATUS') {
+          updateRefreshStatus(message.message || 'Persistence status updated', Boolean(message.isError));
+          if (message.syncedAt || message.liveRows !== undefined) updateSyncMeta({ status: message.isError ? 'FAILED' : 'SUCCESS', syncedAt: message.syncedAt, liveRows: message.liveRows });
+        }
+      });
+    }
+    async function initialize() {
+      bindControlsOnce();
+      setupLiveSyncBridge();
+      setupParentPersistenceBridge();
+      updateRefreshStatus('RCT persistent mode • loading saved database rows');
+      updateExtensionIndicator(false, 'Waiting for extension or database');
+      switchPanel('overviewPanel');
+      try {
+        const reports = await loadAuditData();
+        applyReports(reports);
+      } catch (error) {
+        console.warn('Embedded fallback unavailable; waiting for saved DB data', error);
+        RAW_REPORTS = [];
+        CURRENT_REPORTS = [];
+        byId('tbody').innerHTML = `<tr><td colspan="16" style="padding:24px;color:#475569;font-weight:800;">No saved data yet. Open the GTL source tab and run Capture GTL Batch / Start Dry Run; valid rows will be persisted automatically.</td></tr>`;
+        byId('rowCount').textContent = '0 rows';
+        updateRefreshStatus('No embedded fallback found • waiting for persistent database or extension data');
+      }
+      setFilterValues(byId('clusterFilter'), ['All']);
+      setFilterValues(byId('hubFilter'), ['All']);
+      setFilterValues(byId('disbursementFilter'), ['All']);
+      setFilterValues(byId('settlementFilter'), ['All']);
+      setFilterValues(byId('flagFilter'), ['All']);
+      byId('fromDate').value = '';
+      byId('toDate').value = '';
+      byId('searchInput').value = '';
+      renderTable(true);
+      rctLoadSavedReports();
+      scheduleAutoRefresh();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => initialize()); else initialize();
+    window.switchPanel = switchPanel;
+    window.focusLiveRows = focusLiveRows;
+    window.applyQuickFilter = applyQuickFilter;
+    window.runSyntheticUatFixtures = runSyntheticUatFixtures;
+    window.openDetail = openDetail;
+    window.openImage = openImage;
+    window.openEditor = openEditor;
+    window.saveEditorValue = saveEditorValue;
+    window.updateAction = updateAction;
+    window.closeModal = closeModal;
+  </script>
+</body>
+</html>
+
